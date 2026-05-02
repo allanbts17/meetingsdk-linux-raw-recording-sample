@@ -770,6 +770,13 @@ void InitMeetingSDK()
 	}
 	else{
 		std::cerr << "Init meetingSdk:success" << std::endl;
+		const zchar_t* sdk_version = ZOOM_SDK_NAMESPACE::GetSDKVersion();
+		if (sdk_version != nullptr) {
+			std::cerr << "Meeting SDK Version: " << sdk_version << std::endl;
+		}
+		else {
+			std::cerr << "Meeting SDK Version: unavailable" << std::endl;
+		}
 	}
 
 	//use connection helper
