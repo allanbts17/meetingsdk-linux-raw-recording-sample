@@ -69,8 +69,9 @@ WORKDIR /app/demo/bin
 
 # Define a shell script to run multiple commands
 RUN echo '#!/bin/bash' > /app/demo/run.sh \
-    && echo '/app/demo/setup-pulseaudio.sh' >> /app/demo/run.sh \
+    && echo 'source /app/demo/setup-pulseaudio.sh' >> /app/demo/run.sh \
     && echo './meetingSDKDemo' >> /app/demo/run.sh
+
 
 # Make the run script executable
 RUN dos2unix /app/demo/run.sh && chmod +x /app/demo/run.sh
