@@ -48,19 +48,20 @@ WORKDIR /app
 # Copy your application files to the container
 COPY demo/ /app/demo/
 
+# Fix Windows line endings and permissions
+RUN apt-get update && apt-get install -y dos2unix pciutils && \
+    dos2unix /app/demo/*.sh && \
+    chmod +x /app/demo/*.sh
+
 # Execute additional commands
 RUN cd /app/demo && \
     mkdir -p lib/zoom_meeting_sdk && \
-    cd lib/zoom_meeting_sdk && \
-    (ln -s libmeetingsdk.so libmeetingsdk.so.1 || true) && \
     cd /app/demo && \
-    rm -rf build && cmake -B build && cd build && make && cp meetingSDKDemo ../bin/
+    rm -rf build && cmake -B build && cd build && make
+
 
 # Set the working directory to the source folder
 WORKDIR /app/demo/bin
-
-# Make the run script executable
-RUN chmod +x /app/demo/setup-pulseaudio.sh
 
 # Set the working directory to the binary folder
 WORKDIR /app/demo/bin
@@ -72,9 +73,10 @@ RUN echo '#!/bin/bash' > /app/demo/run.sh \
     && echo './meetingSDKDemo' >> /app/demo/run.sh
 
 # Make the run script executable
-RUN chmod +x /app/demo/run.sh
+RUN dos2unix /app/demo/run.sh && chmod +x /app/demo/run.sh
 
 # Specify the run script as the CMD
 CMD ["/app/demo/run.sh"]
+
 #CMD ["/bin/bash"]
 #CMD ["./meetingSDKDemo"]
