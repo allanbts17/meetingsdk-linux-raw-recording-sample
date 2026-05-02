@@ -49,10 +49,15 @@ WORKDIR /app
 COPY demo/ /app/demo/
 
 # Execute additional commands
-RUN cd /app/demo && rm -rf bin && rm -rf build && cmake -B build && cd build && make
+RUN cd /app/demo && \
+    mkdir -p lib/zoom_meeting_sdk && \
+    cd lib/zoom_meeting_sdk && \
+    (ln -s libmeetingsdk.so libmeetingsdk.so.1 || true) && \
+    cd /app/demo && \
+    rm -rf build && cmake -B build && cd build && make && cp meetingSDKDemo ../bin/
 
 # Set the working directory to the source folder
-WORKDIR /app/demo
+WORKDIR /app/demo/bin
 
 # Make the run script executable
 RUN chmod +x /app/demo/setup-pulseaudio.sh
