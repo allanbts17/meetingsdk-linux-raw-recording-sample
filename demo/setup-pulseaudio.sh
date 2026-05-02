@@ -11,9 +11,10 @@ adduser root pulse-access
 adduser root audio
 
 # Cleanup to be "stateless" on startup, otherwise pulseaudio daemon can't start
-
 rm -rf /var/run/pulse /var/lib/pulse /root/.config/pulse
+mkdir -p ~/.config/pulse
 cp /etc/pulse/* ~/.config/pulse/
+
 
 pulseaudio -D --exit-idle-time=-1
 
@@ -24,6 +25,7 @@ pactl set-default-sink SpeakerOutput
 pactl set-default-source SpeakerOutput.monitor
 
 #make config file
-mkdir ~/.config
+mkdir -p ~/.config
 echo -e "[General]\nsystem.audio.type=default" > ~/.config/zoomus.conf
+
 
