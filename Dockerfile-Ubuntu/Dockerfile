@@ -9,6 +9,12 @@ RUN apt-get install -y pkgconf
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
+    libgl1-mesa-glx \
+    libxkbcommon-x11-0 \
+    libxcb-icccm4 \
+    libxcb-render-util0 \
+    libxcb-xinerama0 \
+    libfontconfig1 \
     libx11-xcb1 \
     libxcb-xfixes0 \
     libxcb-shape0 \
@@ -29,7 +35,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     pkg-config \
     libegl-mesa0 \
     libsdl2-dev \
-    g++-multilib 
+    g++-multilib
+
 
 # Install CURL related libs
 RUN apt-get install -y libcurl4-openssl-dev
@@ -49,7 +56,7 @@ WORKDIR /app
 COPY demo/ /app/demo/
 
 # Fix Windows line endings and permissions
-RUN apt-get update && apt-get install -y dos2unix pciutils && \
+RUN apt-get update && apt-get install -y dos2unix pciutils xvfb && \
     dos2unix /app/demo/*.sh && \
     chmod +x /app/demo/*.sh
 
@@ -70,7 +77,8 @@ WORKDIR /app/demo/bin
 # Define a shell script to run multiple commands
 RUN echo '#!/bin/bash' > /app/demo/run.sh \
     && echo 'source /app/demo/setup-pulseaudio.sh' >> /app/demo/run.sh \
-    && echo './meetingSDKDemo' >> /app/demo/run.sh
+    && echo 'xvfb-run -a ./meetingSDKDemo' >> /app/demo/run.sh
+
 
 
 # Make the run script executable

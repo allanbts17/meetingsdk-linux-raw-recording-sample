@@ -17,7 +17,8 @@ cp -r /etc/pulse/* ~/.config/pulse/
 
 
 
-pulseaudio -D --exit-idle-time=-1
+pulseaudio -D --exit-idle-time=-1 --system --disallow-exit --realtime=false
+
 
 # Create a virtual speaker output
 
