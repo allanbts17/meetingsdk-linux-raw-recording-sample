@@ -61,8 +61,12 @@ RUN apt-get update && apt-get install -y dos2unix pciutils xvfb && \
     chmod +x /app/demo/*.sh
 
 # Execute additional commands
-RUN cd /app/demo && \
-    mkdir -p lib/zoom_meeting_sdk && \
+# RUN cd /app/demo && \
+#     mkdir -p lib/zoom_meeting_sdk && \
+#     cd /app/demo && \
+#     rm -rf build && cmake -B build && cd build && make
+RUN cd /app/demo/lib/zoom_meeting_sdk && \
+    ln -sf libmeetingsdk.so libmeetingsdk.so.1 && \
     cd /app/demo && \
     rm -rf build && cmake -B build && cd build && make
 
@@ -77,7 +81,9 @@ WORKDIR /app/demo/bin
 # Define a shell script to run multiple commands
 RUN echo '#!/bin/bash' > /app/demo/run.sh \
     && echo 'source /app/demo/setup-pulseaudio.sh' >> /app/demo/run.sh \
-    && echo 'xvfb-run -a ./meetingSDKDemo' >> /app/demo/run.sh
+    && echo 'xvfb-run -a ./meetingSDKDemo' >> /app/demo/run.sh \
+    && echo 'echo "===== ZOOM SDK LOGS ====="' >> /app/demo/run.sh \
+    && echo 'cat ~/.zoomsdk/logs/*.log || true' >> /app/demo/run.sh
 
 
 

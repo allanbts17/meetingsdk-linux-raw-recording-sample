@@ -28,6 +28,6 @@ pactl set-default-source SpeakerOutput.monitor
 
 #make config file
 mkdir -p ~/.config
-echo -e "[General]\nsystem.audio.type=default" > ~/.config/zoomus.conf
+echo -e "[General]\nsystem.audio.type=default\nenable.hw.video.decode=false\nenable.hw.video.encode=false\nvideo.renderer.type=0" > ~/.config/zoomus.conf
 
 
