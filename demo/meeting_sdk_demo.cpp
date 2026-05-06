@@ -578,8 +578,8 @@ void JoinMeeting()
 	withoutloginParam.psw = meeting_password.c_str();
 	withoutloginParam.customer_key = NULL;
 	withoutloginParam.webinarToken = NULL;
-	withoutloginParam.isVideoOff = true;
-	withoutloginParam.isAudioOff = true;
+	withoutloginParam.isVideoOff = false;
+	withoutloginParam.isAudioOff = false;
 
 	std::cerr << "JWT token is " << token << std::endl;
 	std::cerr << "Recording token is " << recording_token << std::endl;

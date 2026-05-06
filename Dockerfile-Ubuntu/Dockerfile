@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     pkg-config \
     libegl-mesa0 \
     libsdl2-dev \
+    libudev1 \
     g++-multilib
 
 
@@ -81,7 +82,7 @@ WORKDIR /app/demo/bin
 # Define a shell script to run multiple commands
 RUN echo '#!/bin/bash' > /app/demo/run.sh \
     && echo 'source /app/demo/setup-pulseaudio.sh' >> /app/demo/run.sh \
-    && echo 'xvfb-run -a ./meetingSDKDemo' >> /app/demo/run.sh \
+    && echo 'xvfb-run -a -s "-screen 0 1920x1080x24" ./meetingSDKDemo' >> /app/demo/run.sh \
     && echo 'echo "===== ZOOM SDK LOGS ====="' >> /app/demo/run.sh \
     && echo 'cat ~/.zoomsdk/logs/*.log || true' >> /app/demo/run.sh
 
