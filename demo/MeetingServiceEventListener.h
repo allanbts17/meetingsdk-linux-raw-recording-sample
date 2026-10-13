@@ -8,8 +8,9 @@ class MeetingServiceEventListener : public ZOOM_SDK_NAMESPACE::IMeetingServiceEv
 	 void (*onMeetingEnds_)();
 	 void (*onMeetingStarts_)();
 	 void (*onInMeeting_)();
+	 void (*onMeetingFailure_)(int);
 public:
-	MeetingServiceEventListener(void (*onMeetingStarts_)(), void (*onMeetingEnds_)(), void (*onInMeeting_)());
+	MeetingServiceEventListener(void (*onMeetingStarts_)(), void (*onMeetingEnds_)(), void (*onInMeeting_)(), void (*onMeetingFailure)(int) = nullptr);
 
 	/// \brief Meeting status changed callback.
 	/// \param status The value of meeting. For more details, see \link MeetingStatus \endlink.

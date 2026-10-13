@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cerrno>
 #include <csignal>
+#include <fcntl.h>
 #include <iostream>
 #include <poll.h>
 #include <spawn.h>
@@ -47,7 +48,7 @@ void ZoomSDKVideoSource::onUninitialized() { Stop(); sender_ = nullptr; }
 
 void ZoomSDKVideoSource::Play() {
     int descriptors[2];
-    if (pipe(descriptors) != 0) { stop_ = true; std::cerr << "Cannot create decoder pipe." << std::endl; return; }
+    if (pipe2(descriptors, O_CLOEXEC) != 0) { stop_ = true; std::cerr << "Cannot create decoder pipe." << std::endl; return; }
     const std::string filter = "scale=" + std::to_string(width_) + ":" + std::to_string(height_) +
         ":force_original_aspect_ratio=decrease:force_divisible_by=2:out_range=tv,pad=" + std::to_string(width_) + ":" +
         std::to_string(height_) + ":(ow-iw)/2:(oh-ih)/2,setsar=1,fps=" + std::to_string(fps_);

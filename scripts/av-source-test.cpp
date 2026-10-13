@@ -54,6 +54,21 @@ int main() {
     video.Stop(); audio.Stop();
     assert(videoSender.frames == 30 && audioSender.blocks == 100);
 
+    auto activeClock = std::make_shared<PlaybackClock>(true, true);
+    ZoomSDKVideoSource activeVideo("/tmp/av-test.mkv", activeClock);
+    ZoomSDKVirtualAudioMicEvent activeAudio("/tmp/av-test.mkv", activeClock);
+    activeVideo.onInitialize(&videoSender, nullptr, cap);
+    activeAudio.onMicInitialize(&audioSender);
+    activeVideo.onStartSend(); activeAudio.onMicStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    assert(videoSender.frames > 30 && audioSender.blocks > 100);
+    const auto activeStopStart = Clock::now();
+    activeVideo.Stop(); activeAudio.Stop();
+    assert(Clock::now() - activeStopStart < std::chrono::seconds(2));
+    const int videoCount = videoSender.frames, audioCount = audioSender.blocks;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    assert(videoSender.frames == videoCount && audioSender.blocks == audioCount);
+
     ZoomSDKVirtualAudioMicEvent cancelled("/tmp/av-test.mkv");
     cancelled.onMicInitialize(&audioSender);
     cancelled.onMicStartSend();

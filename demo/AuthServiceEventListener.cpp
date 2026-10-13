@@ -2,17 +2,18 @@
 #include <iostream>
 
 
-AuthServiceEventListener::AuthServiceEventListener(void(*onAuthSuccess)())
+AuthServiceEventListener::AuthServiceEventListener(void(*onAuthSuccess)(), void(*onAuthFailure)(int))
 {
     
     onAuthSuccess_ = onAuthSuccess;
+    onAuthFailure_ = onAuthFailure;
 }
 
 void AuthServiceEventListener::onAuthenticationReturn(ZOOM_SDK_NAMESPACE::AuthResult ret) {
     if (ret == ZOOM_SDK_NAMESPACE::AuthResult::AUTHRET_JWTTOKENWRONG)
     {
         // SDK Auth call failed because the JWT token is invalid.
-       std::cout << "Auth failed: JWT Token is invalid." << std::endl;
+       std::cout << "Auth failed: JWT invalid or expired. Regenerate local configuration and check app credentials/clock." << std::endl;
     }
     else if (ret == ZOOM_SDK_NAMESPACE::AuthResult::AUTHRET_SUCCESS)
     {
@@ -22,6 +23,7 @@ void AuthServiceEventListener::onAuthenticationReturn(ZOOM_SDK_NAMESPACE::AuthRe
     }
     else 
         std::cout << "Auth failed: " << ret << std::endl;
+    if (ret != AUTHRET_SUCCESS && onAuthFailure_) onAuthFailure_(static_cast<int>(ret));
 }
 
 void AuthServiceEventListener::onLoginReturnWithReason(LOGINSTATUS ret, IAccountInfo* pAccountInfo, LoginFailReason reason)

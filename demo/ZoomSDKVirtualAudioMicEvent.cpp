@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <csignal>
+#include <fcntl.h>
 #include <iostream>
 #include <poll.h>
 #include <spawn.h>
@@ -33,7 +34,7 @@ void ZoomSDKVirtualAudioMicEvent::onMicUninitialized() { Stop(); sender_ = nullp
 
 void ZoomSDKVirtualAudioMicEvent::Play() {
     int descriptors[2];
-    if (pipe(descriptors) != 0) { stop_ = true; std::cerr << "Cannot create audio decoder pipe." << std::endl; return; }
+    if (pipe2(descriptors, O_CLOEXEC) != 0) { stop_ = true; std::cerr << "Cannot create audio decoder pipe." << std::endl; return; }
     std::vector<std::string> args = {"ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-threads", "1",
         "-ss", std::to_string(position_), "-i", source_, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "48000",
         "-acodec", "pcm_s16le", "-f", "s16le", "pipe:1"};

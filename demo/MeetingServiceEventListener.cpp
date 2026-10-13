@@ -2,13 +2,14 @@
 #include <rawdata/zoom_rawdata_api.h>
 #include <iostream>
 
-MeetingServiceEventListener::MeetingServiceEventListener(void (*onMeetingStarts)(), void (*onMeetingEnds)(), void (*onInMeeting)())
+MeetingServiceEventListener::MeetingServiceEventListener(void (*onMeetingStarts)(), void (*onMeetingEnds)(), void (*onInMeeting)(), void (*onMeetingFailure)(int))
 
 
 {
 	onMeetingEnds_ = onMeetingEnds;
 	onMeetingStarts_ = onMeetingStarts;
 	onInMeeting_ = onInMeeting;
+	onMeetingFailure_ = onMeetingFailure;
 }
 
 void MeetingServiceEventListener::onMeetingStatusChanged(MeetingStatus status, int iResult)
@@ -38,6 +39,16 @@ void MeetingServiceEventListener::onMeetingStatusChanged(MeetingStatus status, i
 		break;
 	case MEETING_STATUS_FAILED:
 		printf("Failed to connect the meeting server.\n");
+		switch (iResult) {
+		case MEETING_FAIL_PASSWORD_ERR: std::cerr << "Meeting password is incorrect. Update local configuration." << std::endl; break;
+		case MEETING_FAIL_MEETING_OVER: std::cerr << "Meeting has ended." << std::endl; break;
+		case MEETING_FAIL_MEETING_NOT_START: std::cerr << "Meeting has not started; ask the host to start it." << std::endl; break;
+		case MEETING_FAIL_MEETING_NOT_EXIST: std::cerr << "Meeting does not exist; check the meeting number." << std::endl; break;
+		case MEETING_FAIL_CANNOT_START_TOKENEXPIRE: std::cerr << "Meeting token expired; regenerate configuration." << std::endl; break;
+		case MEETING_FAIL_CONNECTION_ERR: std::cerr << "Connection failed; check network access to Zoom." << std::endl; break;
+		default: std::cerr << "Meeting failed with SDK code " << iResult << "." << std::endl;
+		}
+		if (onMeetingFailure_) onMeetingFailure_(iResult);
 		break;
 	case MEETING_STATUS_ENDED:
 		printf("Meeting ends.\n");

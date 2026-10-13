@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <glib.h>
 #include <glib-unix.h>
+#include "MediaValidation.h"
 #include <sstream>
 #include <thread>
 #include <sys/syscall.h>
@@ -75,6 +76,12 @@ ZoomSDKVideoSource* virtual_camera_source = nullptr;
 
 GMainLoop* loop;
 bool shutdown_requested = false;
+int app_exit_code = 0;
+void OnSDKFailure(int code) {
+	std::cerr << "Stopping after SDK failure, code: " << code << std::endl;
+	app_exit_code = 1;
+	if (loop) g_main_loop_quit(loop);
+}
 
 
 //These are needed to readsettingsfromTEXT named config.txt
@@ -568,16 +575,16 @@ void JoinMeeting()
 
 	//try to create the meetingservice object, 
 	//this object will be used to join the meeting
-	if ((err2 = CreateMeetingService(&m_pMeetingService)) != SDKError::SDKERR_SUCCESS) {};
+	if ((err2 = CreateMeetingService(&m_pMeetingService)) != SDKError::SDKERR_SUCCESS) { OnSDKFailure(err2); return; }
 	std::cerr << "MeetingService created." << std::endl;
 
 	//before joining a meeting, create the setting service
 	//this object is used to for settings
-	CreateSettingService(&m_pSettingService);
+	if ((err2 = CreateSettingService(&m_pSettingService)) != SDKERR_SUCCESS) { OnSDKFailure(err2); return; }
 	std::cerr << "Settingservice created." << std::endl;
 
 	// Set the event listener for meeting status
-	m_pMeetingService->SetEvent(new MeetingServiceEventListener(&onMeetingJoined, &onMeetingEndsQuitApp, &onInMeeting));
+	m_pMeetingService->SetEvent(new MeetingServiceEventListener(&onMeetingJoined, &onMeetingEndsQuitApp, &onInMeeting, &OnSDKFailure));
 
 	// Set the event listener for host, co-host 
 	m_pParticipantsController = m_pMeetingService->GetMeetingParticipantsController();
@@ -594,7 +601,7 @@ void JoinMeeting()
 	meetingremindercontroller->SetEvent(meetingremindereventlistener);
 
 	//prepare params used for joining meeting
-	ZOOM_SDK_NAMESPACE::JoinParam joinParam;
+	ZOOM_SDK_NAMESPACE::JoinParam joinParam{};
 	ZOOM_SDK_NAMESPACE::SDKError err(ZOOM_SDK_NAMESPACE::SDKERR_SERVICE_FAILED);
 	joinParam.userType = ZOOM_SDK_NAMESPACE::SDK_UT_WITHOUT_LOGIN;
 	ZOOM_SDK_NAMESPACE::JoinParam4WithoutLogin& withoutloginParam = joinParam.param.withoutloginuserJoin;
@@ -688,6 +695,7 @@ void JoinMeeting()
 		else
 		{
 			std::cout << "join_meeting:error" << std::endl;
+			OnSDKFailure(err);
 		}
 	
 }
@@ -745,14 +753,14 @@ void AuthMeetingSDK()
 	SDKError err(SDKError::SDKERR_SUCCESS);
 
 	//create auth service
-	if ((err = CreateAuthService(&m_pAuthService)) != SDKError::SDKERR_SUCCESS) {};
+	if ((err = CreateAuthService(&m_pAuthService)) != SDKError::SDKERR_SUCCESS) { OnSDKFailure(err); return; }
 	std::cerr << "AuthService created." << std::endl;
 
 	//Create a param to insert jwt token
-	ZOOM_SDK_NAMESPACE::AuthContext param;
+	ZOOM_SDK_NAMESPACE::AuthContext param{};
 
 	//set the event listener for onauthenticationcompleted
-	if ((err = m_pAuthService->SetEvent(new AuthServiceEventListener(&OnAuthenticationComplete))) != SDKError::SDKERR_SUCCESS) {};
+	if ((err = m_pAuthService->SetEvent(new AuthServiceEventListener(&OnAuthenticationComplete, &OnSDKFailure))) != SDKError::SDKERR_SUCCESS) { OnSDKFailure(err); return; }
 	std::cout << "AuthServiceEventListener added." << std::endl;
 
 
@@ -760,7 +768,7 @@ void AuthMeetingSDK()
 		param.jwt_token = token.c_str();
 		std::cerr << "AuthSDK: token loaded from configuration" << std::endl;
 	}
-	m_pAuthService->SDKAuth(param);
+	if ((err = m_pAuthService->SDKAuth(param)) != SDKERR_SUCCESS) OnSDKFailure(err);
 	////attempt to authenticate
 	//ZOOM_SDK_NAMESPACE::SDKError sdkErrorResult = m_pAuthService->SDKAuth(param);
 
@@ -775,7 +783,7 @@ void AuthMeetingSDK()
 void InitMeetingSDK()
 {
 	ZOOM_SDK_NAMESPACE::SDKError err(ZOOM_SDK_NAMESPACE::SDKERR_SUCCESS);
-	ZOOM_SDK_NAMESPACE::InitParam initParam;
+	ZOOM_SDK_NAMESPACE::InitParam initParam{};
 
 	// set domain
 	initParam.strWebDomain = "https://zoom.us";
@@ -792,6 +800,7 @@ void InitMeetingSDK()
 	err = ZOOM_SDK_NAMESPACE::InitSDK(initParam);
 	if (err != ZOOM_SDK_NAMESPACE::SDKERR_SUCCESS){
 		std::cerr << "Init meetingSdk:error " << std::endl;
+		OnSDKFailure(err);
 	}
 	else{
 		std::cerr << "Init meetingSdk:success" << std::endl;
@@ -902,12 +911,20 @@ int main(int argc, char* argv[])
 {
 
 	ReadTEXTSettings();
+	if (SendVideoRawData || SendAudioRawData) {
+		std::string error;
+		if (!ValidateMedia(DEFAULT_VIDEO_SOURCE, SendVideoRawData, SendAudioRawData, error)) {
+			std::cerr << error << std::endl;
+			return 1;
+		}
+	}
 	setvbuf(stdout, NULL, _IONBF, 0);
 	loop = g_main_loop_new(NULL, FALSE);
 
 	
 
 	InitMeetingSDK();
+	if (app_exit_code) { g_main_loop_unref(loop); return app_exit_code; }
 	AuthMeetingSDK();
 	initAppSettings();
 
@@ -915,7 +932,7 @@ int main(int argc, char* argv[])
 
 	// add source to default context
 	g_timeout_add(1000, timeout_callback, loop);
-	g_main_loop_run(loop);
+	if (!app_exit_code) g_main_loop_run(loop);
 	if (virtual_camera_source) virtual_camera_source->Stop();
 	if (virtual_microphone_source) virtual_microphone_source->Stop();
 	CleanSDK();
@@ -923,5 +940,5 @@ int main(int argc, char* argv[])
 	delete virtual_microphone_source;
 	g_main_loop_unref(loop);
 	std::cout << "SDK cleaned up. Exiting." << std::endl;
-	return 0;
+	return app_exit_code;
 }

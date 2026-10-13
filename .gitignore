@@ -28,6 +28,7 @@ git rm --cached config.json
 /demo/lib/zoom_meeting_sdk/images
 /demo/lib/zoom_meeting_sdk/
 /video.mp4
+/video_habla.mp4
 /config/local.json
 .vscode/settings.json
 generateToken.js

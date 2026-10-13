@@ -7,8 +7,9 @@ class AuthServiceEventListener : public IAuthServiceEvent
 {
 	
     	 void (*onAuthSuccess_)();
+         void (*onAuthFailure_)(int);
 public:
-    AuthServiceEventListener(void (*onAuthSuccess)());
+    AuthServiceEventListener(void (*onAuthSuccess)(), void (*onAuthFailure)(int) = nullptr);
 
     /// \brief Authentication result callback.
     /// \param ret Authentication result value.  For more details, see \link AuthResult \endlink enum.
