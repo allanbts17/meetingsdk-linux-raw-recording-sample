@@ -16,6 +16,7 @@ find_package(ZLIB REQUIRED)
 # Find GLib using pkg-config
 pkg_check_modules(GLIB REQUIRED glib-2.0)
 pkg_check_modules(GIO REQUIRED gio-2.0)
+pkg_check_modules(JSON_GLIB REQUIRED json-glib-1.0)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/h)
@@ -23,6 +24,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include/h)
 
 # Include GLib directories
 include_directories(${GLIB_INCLUDE_DIRS} ${GIO_INCLUDE_DIRS})
+include_directories(${JSON_GLIB_INCLUDE_DIRS})
 link_directories(${GLIB_LIBRARY_DIRS} ${GIO_LIBRARY_DIRS})
 add_definitions(${GLIB_CFLAGS_OTHER} ${GIO_CFLAGS_OTHER})
 
@@ -64,6 +66,7 @@ add_executable(meetingSDKDemo
 
 # Link GLib libraries
 target_link_libraries(meetingSDKDemo ${GLIB_LIBRARIES} ${GIO_LIBRARIES})
+target_link_libraries(meetingSDKDemo ${JSON_GLIB_LIBRARIES})
 
 target_link_libraries(meetingSDKDemo gcc_s gcc)
 target_link_libraries(meetingSDKDemo meetingsdk)

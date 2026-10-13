@@ -45,6 +45,7 @@ int main() {
     ZoomSDKVirtualAudioMicEvent stoppedA("/tmp/av-test.mkv", halted);
     stoppedV.onInitialize(&senderV, nullptr, cap); stoppedA.onMicInitialize(&senderA);
     stoppedV.onStartSend(); stoppedA.onMicStartSend();
+    stoppedV.onStartSend(); stoppedA.onMicStartSend(); // Duplicate callbacks must not restart decoders.
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
     halted->Pause(); halted->Halt();
     const auto start = std::chrono::steady_clock::now();
@@ -54,5 +55,27 @@ int main() {
     halted->Resume(); stoppedV.onStartSend(); stoppedA.onMicStartSend();
     std::this_thread::sleep_for(std::chrono::milliseconds(150));
     assert(halted->State() == "stopped" && senderV.count == finalV && senderA.count == finalA);
+    // Reuse the same registered source instances: no SDK reinitialization/rejoin.
+    auto fresh = std::make_shared<PlaybackClock>(true, true);
+    stoppedV.SetMedia("/tmp/av-test.mkv", fresh);
+    stoppedA.SetMedia("/tmp/av-test.mkv", fresh);
+    stoppedV.onStartSend(); stoppedA.onMicStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    stoppedV.Stop(); stoppedA.Stop();
+    assert(stoppedV.IsCompleted() && stoppedA.IsCompleted());
+    assert(senderV.count == finalV + 30 && senderA.count == finalA + 100);
+    auto videoOnly = std::make_shared<PlaybackClock>(true, false);
+    stoppedV.SetMedia("/tmp/video-only.mp4", videoOnly);
+    const int beforeVideoOnly = senderV.count;
+    stoppedV.onStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    stoppedV.Stop();
+    assert(stoppedV.IsCompleted() && senderV.count == beforeVideoOnly + 30 && senderA.count == finalA + 100);
+    auto audioOnly = std::make_shared<PlaybackClock>(false, true);
+    stoppedA.SetMedia("/tmp/av-test.mkv", audioOnly);
+    stoppedA.onMicStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    stoppedA.Stop();
+    assert(stoppedA.IsCompleted() && senderA.count == finalA + 200);
     std::cout << "Controls passed: pause freezes both tracks, resume preserves all media, stop during pause cannot restart." << std::endl;
 }

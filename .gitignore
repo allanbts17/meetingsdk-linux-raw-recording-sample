@@ -26,3 +26,6 @@ demo/CMakeSettings.json
 /config/local.json
 .vscode/settings.json
 generateToken.js
+__pycache__/
+*.pyc
+/api/.venv/

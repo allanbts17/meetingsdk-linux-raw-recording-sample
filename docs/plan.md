@@ -148,15 +148,18 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar acceso al enlace público de Storage desde la VM.
 - [x] Confirmar API en Cloud Run y agente/worker en GCE, sin dominio propio.
 - [x] Elaborar contrato de endpoints para entrada independiente y video/audio/imagen.
-- [ ] Definir cliente consumidor y cerrar autenticación, límites y tiempos propuestos en api-propuesta.md.
+- [ ] Identificar cuenta de servicio del backend y cerrar límites/tiempos propuestos en api-propuesta.md.
+- [x] Confirmar backend consumidor en Cloud Run/GCP y seleccionar IAM Invoker con ID token.
 - [ ] Preparar archivo de prueba 1080p/30 FPS para dimensionar la VM.
 
 ## 11. Reproducción dinámica e IPC
 
-- [ ] Entrar con cámara/micrófono desactivados y esperar comandos sin salir de Zoom.
-- [ ] Implementar IPC estructurado con IDs, respuestas, eventos y estado; confirmar ejecución de comandos.
-- [ ] Implementar play de video después de entrar y nueva reproducción tras stop/EOF, sin reiniciar la sesión.
+- [x] Entrar con cámara/micrófono desactivados y esperar comandos sin salir de Zoom.
+- [x] Implementar socket Unix JSON con IDs de operación/reproducción y consulta de estado; cliente Python dentro de /api.
+- [ ] Completar eventos, posición y errores de emisión en IPC y confirmar ejecución de comandos.
+- [x] Implementar play de video después de entrar y nueva reproducción tras stop/EOF, sin reiniciar la sesión.
 - [ ] Implementar audio independiente e imagen estática, con políticas de pistas/duración del contrato.
+- [x] Verificar decodificación de audio independiente y video sin audio con fuentes reutilizadas en pruebas automatizadas.
 - [ ] Aplicar pause/resume/stop por playback_id y liberar fuentes previas de forma segura.
 - [ ] Verificar videos sucesivos, audio, imagen, eventos del anfitrión y desconexión.
 

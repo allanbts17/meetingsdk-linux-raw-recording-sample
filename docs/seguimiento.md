@@ -111,3 +111,15 @@ Cambios de preparación: CMake usa `config.txt.example` cuando no hay configurac
 ## Arquitectura Cloud Run confirmada — 2026-10-13
 
 El usuario confirmó API en Cloud Run y agente/worker en GCE, sin dominio propio. Estado persistente en SQLite de la VM; Direct VPC egress y autenticación interna para órdenes breves. El SDK mantiene la reunión independientemente de la instancia de API. Se actualizaron plan, contrato, despliegue y acceso/costos. No se desplegaron recursos ni se cambiaron firewall, IAM o tamaños. Autenticación del cliente, límites del contrato y benchmark 1080p siguen pendientes. Nuevas tareas de implementación sin marcar como completadas.
+
+## Reproducción dinámica e inicio de /api — 2026-10-13
+
+Commit de documentación creado antes de implementar: `696c61a`. Usuario confirmó consumidor backend propio en Cloud Run/GCP; se seleccionó IAM Invoker con ID token. Cuenta de servicio concreta pendiente, sin cambios IAM/despliegue.
+
+Las fuentes C++ conservan sus objetos registrados y aceptan otro archivo con reloj/posición/fin reiniciados. Nuevo play después de EOF/stop no reinicia SDK ni reentra a la reunión. Se conserva FIFO de diagnóstico y se añade socket Unix JSON privado 0600, mensajes acotados, versión e IDs de operación/reproducción. Cliente y CLI Python en `api/app`; HTTP y agente SQLite aún pendientes. Imagen, eventos/posición detallada y manejo completo del anfitrión/red pendientes; no anunciar capacidades todavía inexistentes.
+
+Suite multimedia y socket completada; seis pruebas del cliente Python pasan en Windows con mocks y en Linux. Se verifica reutilización tras stop/EOF, video sin audio y audio independiente, y callbacks de inicio duplicados sin reiniciar decodificadores. Socket prueba permisos, mensajes fragmentados/inválidos/excesivos y rechazo de sustituir listener activo.
+
+Prueba real: bot entra con medios apagados; fragmento de ~8 s termina con 201 cuadros/801 bloques; luego video_habla.mp4 reproduce en el mismo participante. Usuario confirma video/voz sincronizados y sin salida/reentrada. La primera transición falló porque mute/unmute de pistas reutilizadas y callbacks duplicados interrumpían decodificadores; corregido evitando mutear las pistas que se reutilizan, evitando reconectar VoIP y haciendo idempotentes callbacks de inicio. Nueva prueba acepta los primeros cuadros/bloques y confirma playing. pause/resume/stop por playback_id devuelve estados aplicados y mantiene reunión; tercer play tras stop comprobado por estado/logs.
+
+Configuración local regenerada con medios automáticos desactivados para esta prueba. Credenciales no incluidas en imagen ni commit. La última validación visual queda asociada a dos videos sucesivos; prueba de audio/imagen en Zoom y despliegue GCE todavía pendientes.

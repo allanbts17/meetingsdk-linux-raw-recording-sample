@@ -40,6 +40,7 @@ RUN apt-get install -y libasound2 libasound2-plugins alsa alsa-utils alsa-oss
 # Install Pulseaudio
 RUN apt-get install -y  pulseaudio pulseaudio-utils
 RUN apt-get install -y --no-install-recommends ffmpeg
+RUN apt-get install -y --no-install-recommends libjson-glib-dev
 
 
 

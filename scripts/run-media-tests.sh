@@ -22,3 +22,6 @@ g++ -std=c++11 -pthread -I/app/demo -I/app/demo/include/h \
     "$test_root/playback-control-test.cpp" /app/demo/ZoomSDKVideoSource.cpp \
     /app/demo/ZoomSDKVirtualAudioMicEvent.cpp -o /tmp/playback-control-test
 timeout 20 /tmp/playback-control-test
+g++ -std=c++11 -pthread -I/app/demo $(pkg-config --cflags gio-2.0 json-glib-1.0) \
+    "$test_root/sdk-control-server-test.cpp" $(pkg-config --libs gio-2.0 json-glib-1.0) -o /tmp/sdk-control-server-test
+timeout 20 /tmp/sdk-control-server-test

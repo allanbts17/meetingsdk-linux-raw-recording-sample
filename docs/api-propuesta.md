@@ -1,6 +1,6 @@
 # Propuesta de API del bot de Zoom
 
-Estado: arquitectura confirmada el 2026-10-13; API y agente aún no implementados. FastAPI en Cloud Run y agente/worker en `zoom-bot-vm`, caché temporal en VM, una reunión simultánea y videos de hasta 1080p. Los límites y autenticación del contrato siguen como propuesta. Este contrato complementa [despliegue-propuesta.md](despliegue-propuesta.md).
+Estado: arquitectura confirmada el 2026-10-13; HTTP y agente persistente pendientes. Código Python bajo `/api`; cliente IPC implementado. FastAPI en Cloud Run y agente/worker en `zoom-bot-vm`, caché temporal en VM, una reunión simultánea y videos de hasta 1080p. Backend consumidor en Cloud Run/GCP: autenticación IAM. Los límites del contrato siguen como propuesta. Este contrato complementa [despliegue-propuesta.md](despliegue-propuesta.md).
 
 ## 1. Alcance y componentes
 
@@ -26,15 +26,13 @@ La descarga, la reunión y la reproducción son trabajos administrados por el ag
 | Identificadores | UUID para `bot_id`, `operation_id` y `request_id` |
 | Fechas | UTC, ISO 8601 terminadas en `Z` |
 | Campos desconocidos | Rechazados con 422; no ignorarlos silenciosamente |
-| Autenticación | `Authorization: Bearer TOKEN_DE_LA_API` |
+| Autenticación | `Authorization: Bearer ID_TOKEN` con audience de la URL del servicio Cloud Run |
 | Peticiones mutables | `Idempotency-Key` obligatorio en POST de creación/control y DELETE |
 | Correlación | `X-Request-ID` en respuestas; aceptar UUID del cliente o generar uno |
 | Respuestas sensibles | `Cache-Control: no-store`; omitir secretos y cuerpos de peticiones en logs |
 | Concurrencia | Una sesión ocupa capacidad desde su aceptación hasta que el agente confirme liberación |
 
-`TOKEN_DE_LA_API` es un token aleatorio del backend cliente. Es independiente del JWT de Meeting SDK. Proponer un token por cliente de confianza, almacenado en Secret Manager y rotatable; comparación segura y credenciales válidas en OpenAPI mediante HTTP Bearer. No se propone un endpoint de login ni emitir JWT de usuario en esta versión.
-
-Autenticación pendiente de cerrar según el consumidor: este contrato propone Bearer de aplicación, con invocación pública en Cloud Run y validación obligatoria en FastAPI. Alternativa para backend con identidad Google: exigir IAM Invoker y usar su ID token; en ese caso adaptar el contrato, sin exigir dos tokens distintos en el mismo header Authorization. El acceso API→agente usa una credencial independiente. No habilitar acceso público antes de implementar/verificar la protección elegida.
+El backend consumidor estará en Cloud Run/GCP. Usar la cuenta de servicio de ese backend con permiso roles/run.invoker sobre esta API, sin conceder invocación a allUsers. El backend obtiene un ID token cuya audience es la URL base del servicio Cloud Run; no usar un access token ni el JWT de Meeting SDK. Cloud Run comprueba la invocación antes de FastAPI. No se implementa login ni token estático público. El acceso API→agente privado usa una credencial distinta gestionada en Secret Manager. Falta identificar la cuenta de servicio concreta del backend para configurar IAM.
 
 Todas las rutas funcionales y documentación requieren autenticación. `/health/live` se reserva a sondas del despliegue, con respuesta mínima y sin datos de sesiones. Si la API se consume directamente desde una aplicación web pública, sustituir el token de backend por autenticación de usuarios antes de publicar ese cliente; no distribuir el token de servidor en JavaScript.
 
@@ -66,7 +64,7 @@ Sondeo inicial recomendado: operación/estado cada segundo mientras cambia; cada
 
 ```http
 POST /v1/bots
-Authorization: Bearer TOKEN_DE_LA_API
+Authorization: Bearer ID_TOKEN
 Idempotency-Key: 77bd482c-366d-4a98-a8d6-e671aa0d4031
 Content-Type: application/json
 ```
@@ -511,11 +509,12 @@ Reinicio de API: consultar al agente; SQLite permanece en la VM y no se monta en
 - Tests incluyen API, agente, IPC, reinicios, concurrencia, idempotencia y validación de URL.
 - Prueba real 1080p/30 FPS de al menos diez minutos en GCE, con métrica de cuadros tardíos y confirmación de sincronía.
 
-Pendiente acordar: cliente consumidor (backend o navegador), dominio/HTTPS, defaults de tamaño/duración/FPS y comportamiento automático frente a eventos externos. Entrar y reproducir son operaciones separadas por instrucción del usuario; finalizar un clip no termina la reunión. La arquitectura base ya fue confirmada; esta especificación propone sus detalles. Tras revisar el contrato, incorporarlos como pasos de implementación al plan. Todavía no se crean recursos ni se implementan endpoints.
+Confirmado: consumidor backend en Cloud Run/GCP, IAM Invoker y URL HTTPS run.app. Pendiente: cuenta de servicio del consumidor, defaults de tamaño/duración/FPS y comportamiento frente a eventos externos. Entrar y reproducir son operaciones separadas; finalizar un clip no termina la reunión. El plan ya incluye la arquitectura. Cliente IPC bajo /api implementado; endpoints HTTP, agente persistente y despliegue siguen pendientes.
 
 ## Referencias de implementación
 
 - [FastAPI: seguridad y HTTP Bearer/OpenAPI](https://fastapi.tiangolo.com/tutorial/security/)
+- [Cloud Run: autenticación entre servicios con IAM e ID token](https://docs.cloud.google.com/run/docs/authenticating/service-to-service)
 - [FastAPI: tareas en segundo plano y sus límites](https://fastapi.tiangolo.com/tutorial/background-tasks/)
 - [FastAPI: despliegue en contenedores](https://fastapi.tiangolo.com/deployment/docker/)
 - [Cloud Storage: descarga de objetos](https://docs.cloud.google.com/storage/docs/downloading-objects)

@@ -20,7 +20,7 @@ La API entrega órdenes breves. Descarga y reproducción se ejecutan en la VM; c
 
 ## Autenticación
 
-Falta definir qué backend consumirá la API. Para un backend con identidad Google se recomienda IAM Invoker e ID token. El contrato actual también describe Bearer de aplicación: Cloud Run permite invocación pública y FastAPI valida obligatoriamente ese token. Son alternativas que deben cerrarse antes de publicar; un token de backend no se distribuye en una web pública.
+Confirmado: el consumidor es un backend propio en Cloud Run/GCP. Exigir IAM Invoker y un ID token con audience de la URL del servicio. Otorgar roles/run.invoker únicamente a la cuenta de servicio de ese backend, sin invocación pública allUsers. API→agente usa una credencial independiente. Falta identificar la cuenta de servicio concreta antes de configurar IAM.
 
 ## Costos
 

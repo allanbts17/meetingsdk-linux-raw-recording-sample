@@ -15,6 +15,7 @@ public:
         std::function<void()> prepareAudio = {});
     ~ZoomSDKVirtualAudioMicEvent() override;
     void Stop();
+    void SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock);
     bool IsCompleted() const { return completed_.load(); }
     bool IsSending() const { return !stop_.load(); }
     void onMicInitialize(ZOOMSDK::IZoomSDKAudioRawDataSender*) override;

@@ -13,7 +13,9 @@ public:
     explicit ZoomSDKVideoSource(std::string source, std::shared_ptr<PlaybackClock> clock = nullptr);
     ~ZoomSDKVideoSource() override;
     void Stop();
+    void SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock);
     bool IsCompleted() const { return completed_.load(); }
+    bool IsSending() const { return !stop_.load(); }
     void onInitialize(ZOOMSDK::IZoomSDKVideoSender*, ZOOMSDK::IList<ZOOMSDK::VideoSourceCapability>*, ZOOMSDK::VideoSourceCapability&) override;
     void onPropertyChange(ZOOMSDK::IList<ZOOMSDK::VideoSourceCapability>*, ZOOMSDK::VideoSourceCapability) override;
     void onStartSend() override;

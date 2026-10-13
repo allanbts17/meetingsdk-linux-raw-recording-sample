@@ -102,7 +102,7 @@ Detalles de acceso y costos en [api-acceso-y-costos.md](api-acceso-y-costos.md).
 2. Confirmado: entrada independiente de presentación de video, audio o imagen; primera prueba de video.
 3. Confirmado: caché temporal en VM con Storage como origen.
 4. Confirmado: una reunión y recursos actuales 2 vCPU/8 GiB antes de medir 1080p.
-5. Pendiente: consumidor de API, modalidad de autenticación y límites/tiempos del contrato.
+5. Confirmado: consumidor backend en Cloud Run/GCP, autenticación IAM Invoker con ID token. Pendiente: cuenta de servicio concreta y límites/tiempos del contrato.
 6. Pendiente: implementar, desplegar y validar; las nuevas tareas están en [plan.md](plan.md).
 
 ## Referencias

@@ -16,6 +16,11 @@ using namespace ZOOMSDK;
 ZoomSDKVideoSource::ZoomSDKVideoSource(std::string source, std::shared_ptr<PlaybackClock> clock)
     : source_(std::move(source)), clock_(clock ? clock : std::make_shared<PlaybackClock>(true, false)) {}
 ZoomSDKVideoSource::~ZoomSDKVideoSource() { Stop(); }
+void ZoomSDKVideoSource::SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock) {
+    Stop();
+    source_ = std::move(source); clock_ = std::move(clock);
+    position_ = 0; completed_ = false;
+}
 void ZoomSDKVideoSource::Stop() {
     stop_ = true;
     clock_->Wake();
@@ -38,6 +43,7 @@ void ZoomSDKVideoSource::onPropertyChange(IList<VideoSourceCapability>*, VideoSo
     if (restart && !completed_) onStartSend();
 }
 void ZoomSDKVideoSource::onStartSend() {
+    if (!stop_.load()) return;
     Stop();
     if (!sender_ || completed_ || clock_->IsHalted()) return;
     stop_ = false;

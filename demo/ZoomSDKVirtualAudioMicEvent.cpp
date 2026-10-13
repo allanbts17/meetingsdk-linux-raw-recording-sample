@@ -15,6 +15,11 @@ using namespace ZOOMSDK;
 ZoomSDKVirtualAudioMicEvent::ZoomSDKVirtualAudioMicEvent(std::string source, std::shared_ptr<PlaybackClock> clock, std::function<void()> prepareAudio)
     : source_(std::move(source)), clock_(clock ? clock : std::make_shared<PlaybackClock>(false, true)), prepareAudio_(std::move(prepareAudio)) {}
 ZoomSDKVirtualAudioMicEvent::~ZoomSDKVirtualAudioMicEvent() { Stop(); }
+void ZoomSDKVirtualAudioMicEvent::SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock) {
+    Stop();
+    source_ = std::move(source); clock_ = std::move(clock);
+    position_ = 0; completed_ = false;
+}
 void ZoomSDKVirtualAudioMicEvent::Stop() {
     stop_ = true; clock_->Wake(); wake_.notify_all();
     if (worker_.joinable()) worker_.join();
@@ -24,6 +29,7 @@ void ZoomSDKVirtualAudioMicEvent::onMicInitialize(IZoomSDKAudioRawDataSender* se
     std::cout << "Virtual microphone initialized." << std::endl;
 }
 void ZoomSDKVirtualAudioMicEvent::onMicStartSend() {
+    if (!stop_.load()) return;
     Stop();
     if (!sender_ || completed_ || clock_->IsHalted()) return;
     if (prepareAudio_) prepareAudio_();
