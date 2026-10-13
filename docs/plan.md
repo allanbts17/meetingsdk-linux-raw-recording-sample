@@ -21,7 +21,7 @@ Construir una aplicación propia en Linux x86_64 que entre como participante en 
 - [x] Confirmar con el usuario si las reuniones serán de su cuenta o de terceros.
 - [x] Confirmar archivo de prueba y reproducción única o en bucle.
 - [x] Confirmar alcance inicial de los controles de reproducción.
-- [ ] Confirmar si la reproducción comienza automáticamente al entrar o mediante una orden.
+- [x] Confirmar si la reproducción comienza automáticamente al entrar o mediante una orden.
 
 ## 1. Confirmar la vía de integración con Zoom
 
@@ -86,45 +86,45 @@ Resultado esperado: configuración validada y JWT generado sin exponer credencia
 - [x] Verificar entrada efectiva `MEETING_STATUS_INMEETING`, incluida admisión desde sala de espera si existe.
 - [x] Confirmar nombre del participante desde un cliente Zoom humano.
 - [ ] Manejar contraseña incorrecta, JWT vencido y reunión no disponible con mensajes útiles.
-- [ ] Salir, finalizar el proceso y liberar SDK/controladores correctamente.
+- [x] Salir, finalizar el proceso y liberar SDK/controladores correctamente.
 
 Resultado esperado: participante visible y ciclo de entrada/salida reproducible. La respuesta inmediata de `Join()` no basta para confirmar entrada.
 
 ## 6. Enviar video por cámara virtual
 
-- [ ] Confirmar contrato `IZoomSDKVideoSender`, formatos, capacidades y callbacks en los encabezados 7.1.5.
-- [ ] Implementar primero una fuente de cuadros de prueba para validar la cámara externa.
-- [ ] Registrar fuente externa y activar video en el momento correcto del ciclo SDK.
-- [ ] Verificar imagen visible desde otro participante.
-- [ ] Preparar un archivo local mediante FFmpeg a formato compatible (por ejemplo YUV420p/I420 si lo admite la API).
-- [ ] Implementar lectura/decodificación y envío de cuadros con dimensiones, tamaño y FPS correctos.
-- [ ] Respetar capacidades negociadas y cambios de resolución.
-- [ ] Implementar reproducción única y finalización al terminar el archivo.
+- [x] Confirmar contrato `IZoomSDKVideoSender`, formatos, capacidades y callbacks en los encabezados 7.1.5.
+- [x] Implementar primero una fuente de cuadros de prueba para validar la cámara externa.
+- [x] Registrar fuente externa y activar video en el momento correcto del ciclo SDK.
+- [x] Verificar imagen visible desde otro participante.
+- [x] Preparar un archivo local mediante FFmpeg a formato compatible (por ejemplo YUV420p/I420 si lo admite la API).
+- [x] Implementar lectura/decodificación y envío de cuadros con dimensiones, tamaño y FPS correctos.
+- [x] Respetar capacidades negociadas y cambios de resolución.
+- [x] Implementar reproducción única y finalización al terminar el archivo.
 - [ ] Añadir pausa y detención en una etapa posterior.
-- [ ] Sustituir flags compartidos inseguros y threads detached por control de vida y sincronización adecuados.
+- [x] Sustituir flags compartidos inseguros y threads detached de video por control de vida y sincronización adecuados.
 
 Resultado esperado: video continuo visible por la cámara del participante, sin pantalla negra ni envío después de parar.
 
 ## 7. Enviar audio por micrófono virtual
 
 - [x] Verificar PulseAudio y `zoomus.conf` generados por el script del contenedor.
-- [ ] Confirmar formato, canales, frecuencia y tamaño de bloques admitidos por `IZoomSDKAudioRawDataSender` 7.1.5.
-- [ ] Registrar fuente externa, entrar a VoIP y gestionar mute/unmute según callbacks y permisos del anfitrión.
-- [ ] Preparar PCM compatible; no enviar cabecera WAV como muestras de audio.
-- [ ] Enviar bloques de audio con temporización, comprobando errores del SDK.
-- [ ] Probar primero un tono o voz corta y después el audio del video.
-- [ ] Verificar sonido desde otro cliente y parada sin emisiones residuales.
+- [x] Confirmar formato, canales, frecuencia y tamaño de bloques admitidos por `IZoomSDKAudioRawDataSender` 7.1.5.
+- [x] Registrar fuente externa, entrar a VoIP y activar el micrófono al iniciar según callbacks y permisos del anfitrión.
+- [x] Preparar PCM compatible; no enviar cabecera WAV como muestras de audio.
+- [x] Enviar bloques de audio con temporización, comprobando errores del SDK.
+- [x] Probar primero un tono o voz corta y después el audio del video.
+- [x] Verificar sonido desde otro cliente y parada sin emisiones residuales.
 
 Resultado esperado: audio inteligible y continuo por el micrófono del participante.
 
 ## 8. Sincronizar y controlar la reproducción
 
-- [ ] Usar reloj monotónico y una base temporal compartida para audio/video.
-- [ ] Evitar acumular retraso: definir qué hacer con cuadros tardíos y buffers llenos.
-- [ ] Coordinar inicio y fin de ambas pistas para reproducción única.
+- [x] Usar reloj monotónico y una base temporal compartida para audio/video.
+- [x] Evitar acumular retraso: definir qué hacer con cuadros tardíos y buffers llenos.
+- [x] Coordinar inicio y fin de ambas pistas para reproducción única.
 - [ ] Añadir pausa y detención coordinadas de ambas pistas en una etapa posterior.
-- [ ] Exponer ruta del medio y opciones mediante configuración; retirar nombres de archivo hardcodeados.
-- [ ] Elegir interfaz de control inicial sencilla (configuración/CLI); añadir chat o API solo si se requiere.
+- [x] Exponer ruta del medio y opciones mediante configuración; retirar nombres de archivo hardcodeados.
+- [x] Elegir interfaz de control inicial sencilla (configuración/CLI); añadir chat o API solo si se requiere.
 - [ ] Manejar mute del anfitrión, desactivación de video y desconexión de forma predecible.
 
 Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al menos diez minutos, con criterio de tolerancia acordado.
