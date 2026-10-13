@@ -1,37 +1,35 @@
-//SendAudioRawData
-
-#include <iostream>
-#include <cstdint>
+#pragma once
+#include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include "PlaybackClock.h"
 #include "rawdata/rawdata_audio_helper_interface.h"
-#include "zoom_sdk.h"
-#include "zoom_sdk_raw_data_def.h"
 
-
-using namespace std;
-using namespace ZOOMSDK;
-
-class ZoomSDKVirtualAudioMicEvent :
-	public IZoomSDKVirtualAudioMicEvent
-{
-
-private:
-	IZoomSDKAudioRawDataSender* pSender_;
-	std::string audio_source_;
-protected:
-
-	/// \brief Callback for virtual audio mic to do some initialization.
-/// \param pSender, You can send audio data based on this object, see \link IZoomSDKAudioRawDataSender \endlink.
-	virtual void onMicInitialize(IZoomSDKAudioRawDataSender* pSender);
-
-	/// \brief Callback for virtual audio mic can send raw data with 'pSender'.
-	virtual void onMicStartSend();
-
-	/// \brief Callback for virtual audio mic should stop send raw data.
-	virtual void onMicStopSend();
-
-	/// \brief Callback for virtual audio mic is uninitialized.
-	virtual void onMicUninitialized();
-
+class ZoomSDKVirtualAudioMicEvent : public ZOOMSDK::IZoomSDKVirtualAudioMicEvent {
 public:
-	ZoomSDKVirtualAudioMicEvent(std::string audio_source);
+    explicit ZoomSDKVirtualAudioMicEvent(std::string source, std::shared_ptr<PlaybackClock> clock = nullptr,
+        std::function<void()> prepareAudio = {});
+    ~ZoomSDKVirtualAudioMicEvent() override;
+    void Stop();
+    bool IsSending() const { return !stop_.load(); }
+    void onMicInitialize(ZOOMSDK::IZoomSDKAudioRawDataSender*) override;
+    void onMicStartSend() override;
+    void onMicStopSend() override;
+    void onMicUninitialized() override;
+private:
+    void Play();
+    ZOOMSDK::IZoomSDKAudioRawDataSender* sender_ = nullptr;
+    std::string source_;
+    std::shared_ptr<PlaybackClock> clock_;
+    std::function<void()> prepareAudio_;
+    std::thread worker_;
+    std::atomic<bool> stop_{true};
+    std::mutex waitMutex_;
+    std::condition_variable wake_;
+    double position_ = 0;
+    bool completed_ = false;
 };

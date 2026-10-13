@@ -3,8 +3,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const root = path.resolve(__dirname, '..');
-const input = path.resolve(process.argv[2] || path.join(root, 'config/local.json'));
-const output = path.resolve(process.argv[3] || path.join(root, 'demo/config.txt'));
+const positional = process.argv.slice(2).filter(arg => arg !== '--video' && arg !== '--av');
+const input = path.resolve(positional[0] || path.join(root, 'config/local.json'));
+const output = path.resolve(positional[1] || path.join(root, 'demo/config.txt'));
 
 try {
   const settings = JSON.parse(fs.readFileSync(input, 'utf8').replace(/^\uFEFF/, ''));
@@ -33,12 +34,15 @@ try {
     meeting_password: settings.meetingPassword,
     recording_token: '', onBehalfOf_Token: '',
     GetVideoRawData: 'false', GetAudioRawData: 'false',
-    SendVideoRawData: 'false', SendAudioRawData: 'false'
+    SendVideoRawData: process.argv.includes('--video') || process.argv.includes('--av') ? 'true' : 'false',
+    SendAudioRawData: process.argv.includes('--av') ? 'true' : 'false',
+    video_source: '/app/media/video.mp4'
   };
   fs.mkdirSync(path.dirname(output), {recursive: true});
   fs.writeFileSync(output, Object.entries(fields).map(([key, value]) => `${key}: "${value}"`).join('\n') + '\n', {mode: 0o600});
   console.log(`Configuration generated. JWT expires at ${new Date(expiresAt * 1000).toISOString()}.`);
-  console.log('All media flags are disabled for the first connection test.');
+  console.log(process.argv.includes('--av') ? 'Video and audio enabled; raw reception disabled.' :
+    process.argv.includes('--video') ? 'Video enabled; audio and raw reception disabled.' : 'All media flags are disabled for the first connection test.');
 } catch (error) {
   // JSON parser errors may include input content; never print them.
   console.error(error instanceof SyntaxError ? 'Invalid JSON in local configuration.' :

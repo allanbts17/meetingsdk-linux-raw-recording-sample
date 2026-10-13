@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <glib.h>
+#include <glib-unix.h>
 #include <sstream>
 #include <thread>
 #include <sys/syscall.h>
@@ -59,13 +60,21 @@ USING_ZOOM_SDK_NAMESPACE
 
 
 //references for SendAudioRawData
-std::string DEFAULT_AUDIO_SOURCE = "yourwavefile.wav";
+std::string DEFAULT_AUDIO_SOURCE = "/app/media/video.mp4";
+ZoomSDKVirtualAudioMicEvent* virtual_microphone_source = nullptr;
+std::shared_ptr<PlaybackClock> playback_clock;
+unsigned int audio_start_attempts = 0;
+bool audio_started = false;
+std::atomic<bool> music_audio_configured{false};
+unsigned int music_audio_attempts = 0;
 
 //references for SendVideoRawData
-std::string DEFAULT_VIDEO_SOURCE = "yourmp4file.mp4";
+std::string DEFAULT_VIDEO_SOURCE = "/app/media/video.mp4";
+ZoomSDKVideoSource* virtual_camera_source = nullptr;
 
 
 GMainLoop* loop;
+bool shutdown_requested = false;
 
 
 //These are needed to readsettingsfromTEXT named config.txt
@@ -177,18 +186,30 @@ void CheckAndStartRawRecording(bool isVideo, bool isAudio) {
 	}
 }
 
+void ConfigureMusicAudio() {
+	if (!m_pSettingService) return;
+	const auto settings = m_pSettingService->GetAudioSettings();
+	if (!settings) return;
+	const auto originalResult = settings->EnableMicOriginalInput(true);
+	music_audio_configured = originalResult == SDKERR_SUCCESS;
+	std::cout << "VoIP original sound, SDK result: " << originalResult << std::endl;
+	std::cout << "VoIP disable echo cancellation, SDK result: " << settings->DisableEchoCancellation(true) << std::endl;
+	std::cout << "VoIP disable auto gain, SDK result: " << settings->EnableAutoAdjustMic(false) << std::endl;
+}
+
 //check if you meet the requirements to send raw data
 void CheckAndStartRawSending(bool isVideo, bool isAudio) {
+	if (!playback_clock) playback_clock = std::make_shared<PlaybackClock>(isVideo, isAudio);
 
 
 	//SendVideoRawData
 	if (isVideo) {
 
-		ZoomSDKVideoSource* virtual_camera_video_source = new ZoomSDKVideoSource(DEFAULT_VIDEO_SOURCE);
+		if (!virtual_camera_source) virtual_camera_source = new ZoomSDKVideoSource(DEFAULT_VIDEO_SOURCE, playback_clock);
 		IZoomSDKVideoSourceHelper* p_videoSourceHelper = GetRawdataVideoSourceHelper();
 
 		if (p_videoSourceHelper) {
-			SDKError err = p_videoSourceHelper->setExternalVideoSource(virtual_camera_video_source, FrameDataFormat_I420_LIMITED);
+			SDKError err = p_videoSourceHelper->setExternalVideoSource(virtual_camera_source, FrameDataFormat_I420_LIMITED);
 
 
 
@@ -210,10 +231,15 @@ void CheckAndStartRawSending(bool isVideo, bool isAudio) {
 
 	//SendAudioRawData
 	if (isAudio) {
-		ZoomSDKVirtualAudioMicEvent* audio_source = new ZoomSDKVirtualAudioMicEvent(DEFAULT_AUDIO_SOURCE);
+		if (!virtual_microphone_source) virtual_microphone_source = new ZoomSDKVirtualAudioMicEvent(DEFAULT_AUDIO_SOURCE, playback_clock, ConfigureMusicAudio);
 		IZoomSDKAudioRawDataHelper* audioHelper = GetAudioRawdataHelper();
 		if (audioHelper) {
-			SDKError err = audioHelper->setExternalAudioSource(audio_source);
+			SDKError err = audioHelper->setExternalAudioSource(virtual_microphone_source);
+			std::cout << "Register external microphone, SDK result: " << err << std::endl;
+			m_pMeetingService->GetMeetingAudioController()->JoinVoip();
+		}
+		else {
+			std::cerr << "Cannot obtain external microphone helper." << std::endl;
 		}
 	}
 
@@ -290,8 +316,7 @@ void onInMeeting() {
 
 //on meeting ended, typically by host, do something here. it is possible to reuse this SDK instance
 void onMeetingEndsQuitApp() {
-	// CleanSDK();
-	//std::exit(0);
+	if (loop) g_main_loop_quit(loop);
 }
 
 void onMeetingJoined() {
@@ -434,6 +459,8 @@ void ReadTEXTSettings()
 	}
 
 	if (config.count("participant_name")) participant_name = config["participant_name"];
+	if (config.count("video_source")) DEFAULT_VIDEO_SOURCE = config["video_source"];
+	DEFAULT_AUDIO_SOURCE = DEFAULT_VIDEO_SOURCE;
 	if (meeting_number.empty() || meeting_number.size() > 11 ||
 		meeting_number.find_first_not_of("0123456789") != std::string::npos ||
 		meeting_number.find_first_not_of('0') == std::string::npos || token.empty() || participant_name.empty()) {
@@ -450,6 +477,16 @@ void ReadTEXTSettings()
 void CleanSDK()
 {
 	ZOOM_SDK_NAMESPACE::SDKError err(ZOOM_SDK_NAMESPACE::SDKERR_SUCCESS);
+	if (videoHelper) {
+		videoHelper->unSubscribe();
+		destroyRenderer(videoHelper);
+		videoHelper = nullptr;
+	}
+	if (audioHelper) { audioHelper->unSubscribe(); audioHelper = nullptr; }
+	if (m_pMeetingService) {
+		ZOOM_SDK_NAMESPACE::DestroyMeetingService(m_pMeetingService);
+		m_pMeetingService = nullptr;
+	}
 
 	if (m_pAuthService)
 	{
@@ -460,17 +497,6 @@ void CleanSDK()
 	{
 		ZOOM_SDK_NAMESPACE::DestroySettingService(m_pSettingService);
 		m_pSettingService = NULL;
-	}
-	if (m_pMeetingService)
-	{
-		ZOOM_SDK_NAMESPACE::DestroyMeetingService(m_pMeetingService);
-		m_pMeetingService = NULL;
-	}
-	if (videoHelper) {
-		videoHelper->unSubscribe();
-	}
-	if (audioHelper) {
-		audioHelper->unSubscribe();
 	}
 	//if (_network_connection_helper)
 	//{
@@ -639,8 +665,7 @@ void JoinMeeting()
 		{
 			//ensure auto join audio
 			pAudioContext->EnableAutoJoinAudio(true);
-			pAudioContext->EnableAlwaysMuteMicWhenJoinVoip(true);
-			pAudioContext->SetSuppressBackgroundNoiseLevel(Suppress_BGNoise_Level_None);
+			pAudioContext->EnableAlwaysMuteMicWhenJoinVoip(false);
 
 		}
 	}
@@ -683,12 +708,13 @@ void LeaveMeeting()
 			status = m_pMeetingService->GetMeetingStatus();
 		}
 
-		if (status == ZOOM_SDK_NAMESPACE::MEETING_STATUS_IDLE ||
+	if (status == ZOOM_SDK_NAMESPACE::MEETING_STATUS_IDLE ||
 			status == ZOOM_SDK_NAMESPACE::MEETING_STATUS_ENDED ||
 			status == ZOOM_SDK_NAMESPACE::MEETING_STATUS_FAILED)
 		{
 
 			std::cout << "LeaveMeeting() not in meeting " << std::endl;
+			return;
 			
 		}
 
@@ -831,38 +857,53 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 
 gboolean timeout_callback(gpointer data)
 {
+	if (!shutdown_requested && virtual_microphone_source && virtual_microphone_source->IsSending() &&
+		!music_audio_configured && music_audio_attempts++ < 5) ConfigureMusicAudio();
+	if (!shutdown_requested && SendAudioRawData && virtual_microphone_source && m_pMeetingService &&
+		m_pMeetingService->GetMeetingStatus() == MEETING_STATUS_INMEETING && !audio_started) {
+		if (virtual_microphone_source->IsSending()) audio_started = true;
+		else if (audio_start_attempts++ < 15) {
+			const auto myself = getMyself();
+			if (myself) {
+				const auto result = m_pMeetingService->GetMeetingAudioController()->UnMuteAudio(myself->GetUserID());
+				std::cout << "Initial microphone unmute, SDK result: " << result << std::endl;
+			}
+		}
+	}
+	if (shutdown_requested && m_pMeetingService) {
+		const auto status = m_pMeetingService->GetMeetingStatus();
+		if (status == MEETING_STATUS_IDLE || status == MEETING_STATUS_ENDED || status == MEETING_STATUS_FAILED) {
+			g_main_loop_quit(loop);
+			return G_SOURCE_REMOVE;
+		}
+	}
 	return TRUE;
 }
 
 //this catches a break signal, such as Ctrl + C
-void my_handler(int s)
+gboolean requestShutdown(gpointer)
 {
-	printf("\nCaught signal %d\n", s);
-	LeaveMeeting();
-	printf("Leaving session.\n");
-	CleanSDK();
-
-	
-
-	//InitMeetingSDK();
-	//AuthMeetingSDK();
-
-	std::exit(0);
+	std::cout << "Shutdown requested." << std::endl;
+	shutdown_requested = true;
+	if (virtual_camera_source) virtual_camera_source->Stop();
+	if (virtual_microphone_source) virtual_microphone_source->Stop();
+	if (m_pMeetingService) LeaveMeeting();
+	else if (loop) g_main_loop_quit(loop);
+	return G_SOURCE_REMOVE;
 }
 
 void initAppSettings()
 {
-	struct sigaction sigIntHandler;
-	sigIntHandler.sa_handler = my_handler;
-	sigemptyset(&sigIntHandler.sa_mask);
-	sigIntHandler.sa_flags = 0;
-	sigaction(SIGINT, &sigIntHandler, NULL);
+	g_unix_signal_add(SIGINT, requestShutdown, NULL);
+	g_unix_signal_add(SIGTERM, requestShutdown, NULL);
 }
 
 int main(int argc, char* argv[])
 {
 
 	ReadTEXTSettings();
+	setvbuf(stdout, NULL, _IONBF, 0);
+	loop = g_main_loop_new(NULL, FALSE);
 
 	
 
@@ -872,9 +913,15 @@ int main(int argc, char* argv[])
 
 
 
-	loop = g_main_loop_new(NULL, FALSE);
 	// add source to default context
 	g_timeout_add(1000, timeout_callback, loop);
 	g_main_loop_run(loop);
+	if (virtual_camera_source) virtual_camera_source->Stop();
+	if (virtual_microphone_source) virtual_microphone_source->Stop();
+	CleanSDK();
+	delete virtual_camera_source;
+	delete virtual_microphone_source;
+	g_main_loop_unref(loop);
+	std::cout << "SDK cleaned up. Exiting." << std::endl;
 	return 0;
 }

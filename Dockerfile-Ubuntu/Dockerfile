@@ -39,6 +39,7 @@ RUN apt-get install -y libasound2 libasound2-plugins alsa alsa-utils alsa-oss
 
 # Install Pulseaudio
 RUN apt-get install -y  pulseaudio pulseaudio-utils
+RUN apt-get install -y --no-install-recommends ffmpeg
 
 
 
@@ -64,7 +65,7 @@ WORKDIR /app/demo/bin
 # Define a shell script to run multiple commands
 RUN echo '#!/bin/bash' > /app/demo/run.sh \
     && echo '/app/demo/setup-pulseaudio.sh' >> /app/demo/run.sh \
-    && echo './meetingSDKDemo' >> /app/demo/run.sh
+    && echo 'exec ./meetingSDKDemo' >> /app/demo/run.sh
 
 # Make the run script executable
 RUN chmod +x /app/demo/run.sh
