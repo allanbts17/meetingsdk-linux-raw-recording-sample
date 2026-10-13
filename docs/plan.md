@@ -85,7 +85,7 @@ Resultado esperado: configuración validada y JWT generado sin exponer credencia
 - [x] Verificar inicialización SDK y callback de autenticación exitosa.
 - [x] Verificar entrada efectiva `MEETING_STATUS_INMEETING`, incluida admisión desde sala de espera si existe.
 - [x] Confirmar nombre del participante desde un cliente Zoom humano.
-- [ ] Manejar contraseña incorrecta, JWT vencido y reunión no disponible con mensajes útiles.
+- [x] Manejar contraseña incorrecta, JWT vencido y reunión no disponible con mensajes útiles.
 - [x] Salir, finalizar el proceso y liberar SDK/controladores correctamente.
 
 Resultado esperado: participante visible y ciclo de entrada/salida reproducible. La respuesta inmediata de `Join()` no basta para confirmar entrada.
@@ -131,10 +131,10 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 
 ## 9. Validación final y entrega del MVP
 
-- [ ] Probar flujo completo desde build hasta reproducción en una reunión de prueba.
-- [ ] Probar archivo ausente, formato inválido, fin del clip, repetición y salida de la reunión.
-- [ ] Comprobar consumo de CPU/memoria y ausencia de hilos activos tras finalizar.
-- [ ] Verificar que logs, repositorio e imagen no contienen credenciales.
-- [ ] Documentar comandos, formatos aceptados, configuración y solución de errores frecuentes.
-- [ ] Añadir pruebas automatizadas útiles para conversión, tamaños de cuadros/bloques y control de reproducción; validar Zoom con prueba real.
+- [x] Probar flujo completo desde build hasta reproducción en una reunión de prueba.
+- [x] Probar archivo ausente, formato inválido, fin del clip, ausencia de repetición y salida de la reunión.
+- [x] Comprobar consumo de CPU/memoria y ausencia de hilos activos tras finalizar.
+- [x] Verificar que archivos versionables, logs de consola y configuración incluida en imagen no contienen los valores privados configurados.
+- [x] Documentar comandos, formatos aceptados, configuración y solución de errores frecuentes.
+- [x] Añadir pruebas automatizadas útiles para conversión, tamaños de cuadros/bloques y control de reproducción; validar Zoom con prueba real.
 - [ ] Marcar MVP completo solo cuando otro participante vea el video y oiga el audio correctamente.
