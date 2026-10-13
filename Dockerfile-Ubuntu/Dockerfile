@@ -5,7 +5,7 @@ FROM ubuntu:22.04
 RUN apt-get update && \
     apt-get install -y build-essential cmake
 
-RUN apt-get install -y pkgconf
+RUN apt-get install -y pkgconf pciutils
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \

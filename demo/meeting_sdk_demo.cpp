@@ -70,6 +70,7 @@ GMainLoop* loop;
 
 //These are needed to readsettingsfromTEXT named config.txt
 std::string meeting_number, token, meeting_password, recording_token,onBehalfOf_Token;
+std::string participant_name = "VideoBot";
 
 
 //Services which are needed to initialize, authenticate and configure settings for the SDK
@@ -187,7 +188,7 @@ void CheckAndStartRawSending(bool isVideo, bool isAudio) {
 		IZoomSDKVideoSourceHelper* p_videoSourceHelper = GetRawdataVideoSourceHelper();
 
 		if (p_videoSourceHelper) {
-			SDKError err = p_videoSourceHelper->setExternalVideoSource(virtual_camera_video_source);
+			SDKError err = p_videoSourceHelper->setExternalVideoSource(virtual_camera_video_source, FrameDataFormat_I420_LIMITED);
 
 
 
@@ -348,6 +349,7 @@ void ReadTEXTSettings()
 	std::ifstream configFile(self_dir.c_str());
 	if (!configFile) {
 		std::cerr << "Error opening config file." << std::endl;
+		std::exit(1);
 	}
 	else{
 
@@ -361,33 +363,27 @@ void ReadTEXTSettings()
 		// Process each line to extract key-value pairs
 		processLine(line, config);
 		
-		std::cerr << "Reading.." << line <<std::endl;
 	}
 
 	// Example: Accessing values by key
 	if (config.find("meeting_number") != config.end()) {
 		
 		meeting_number=config["meeting_number"];
-		std::cout << "Meeting Number: " << config["meeting_number"] << std::endl;
 	}
 	if (config.find("token") != config.end()) {
 		 token=config["token"];
-		 	std::cout << "Token: " << token<< std::endl;
 	}
 	if (config.find("meeting_password") != config.end()) {
 		
 		meeting_password=config["meeting_password"];
-		std::cout << "meeting_password: " << meeting_password << std::endl;
 	}
 	if (config.find("recording_token") != config.end()) {
 	
 		 recording_token=config["recording_token"];
-		 	std::cout << "recording_token: " << recording_token << std::endl;
 	}
 	if (config.find("onBehalfOf_Token") != config.end()) {
 	
 		 onBehalfOf_Token=config["onBehalfOf_Token"];
-		 	std::cout << "onBehalfOf_Token: " << onBehalfOf_Token << std::endl;
 	}
 
 
@@ -437,7 +433,13 @@ void ReadTEXTSettings()
 		std::cout << "SendAudioRawData: " << SendAudioRawData << std::endl;
 	}
 
-	// Additional processing or handling of parsed values can be done here
+	if (config.count("participant_name")) participant_name = config["participant_name"];
+	if (meeting_number.empty() || meeting_number.size() > 11 ||
+		meeting_number.find_first_not_of("0123456789") != std::string::npos ||
+		meeting_number.find_first_not_of('0') == std::string::npos || token.empty() || participant_name.empty()) {
+		std::cerr << "Invalid configuration: require a numeric meeting_number (1-11 digits), token and participant_name." << std::endl;
+		std::exit(1);
+	}
 
 	printf("directory of config file: %s\n", self_dir.c_str());
 
@@ -573,16 +575,14 @@ void JoinMeeting()
 	// withoutloginParam.meetingNumber = 1231231234;
 	withoutloginParam.meetingNumber = std::stoull(meeting_number);
 	withoutloginParam.vanityID = NULL;
-	withoutloginParam.userName = "LinuxChun";
+	withoutloginParam.userName = participant_name.c_str();
 	// withoutloginParam.psw = "1";
 	withoutloginParam.psw = meeting_password.c_str();
 	withoutloginParam.customer_key = NULL;
 	withoutloginParam.webinarToken = NULL;
-	withoutloginParam.isVideoOff = false;
-	withoutloginParam.isAudioOff = false;
+	withoutloginParam.isVideoOff = !SendVideoRawData;
+	withoutloginParam.isAudioOff = !SendAudioRawData;
 
-	std::cerr << "JWT token is " << token << std::endl;
-	std::cerr << "Recording token is " << recording_token << std::endl;
 
 	//automatically set app_privilege token if it is present in config.txt, or retrieved from web service
 	withoutloginParam.app_privilege_token = NULL;
@@ -597,7 +597,6 @@ void JoinMeeting()
 		std::cerr << "Leaving recording token as NULL" << std::endl;
 	}
 	
-	std::cerr << "onBehalfOf Token is " << onBehalfOf_Token << std::endl;
 	//automatically set onBehalfOf token if it is present in config.txt, or retrieved from web service
 	withoutloginParam.onBehalfToken = NULL;
 	if (!onBehalfOf_Token.size() == 0)
@@ -733,7 +732,7 @@ void AuthMeetingSDK()
 
 	if (!token.size() == 0){
 		param.jwt_token = token.c_str();
-		std::cerr << "AuthSDK:token extracted from config file " <<param.jwt_token  << std::endl;
+		std::cerr << "AuthSDK: token loaded from configuration" << std::endl;
 	}
 	m_pAuthService->SDKAuth(param);
 	////attempt to authenticate

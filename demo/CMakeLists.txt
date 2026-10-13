@@ -77,6 +77,10 @@ execute_process(COMMAND ln -s libmeetingsdk.so libmeetingsdk.so.1
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/lib/zoom_meeting_sdk
 )
 
-configure_file(${CMAKE_SOURCE_DIR}/config.txt ${CMAKE_SOURCE_DIR}/bin/config.txt COPYONLY)
+if(EXISTS ${CMAKE_SOURCE_DIR}/config.txt)
+    configure_file(${CMAKE_SOURCE_DIR}/config.txt ${CMAKE_SOURCE_DIR}/bin/config.txt COPYONLY)
+else()
+    configure_file(${CMAKE_SOURCE_DIR}/config.txt.example ${CMAKE_SOURCE_DIR}/bin/config.txt COPYONLY)
+endif()
 
 file(COPY ${CMAKE_SOURCE_DIR}/lib/zoom_meeting_sdk/ DESTINATION ${CMAKE_SOURCE_DIR}/bin)
