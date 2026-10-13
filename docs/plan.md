@@ -2,7 +2,7 @@
 
 ## Objetivo y alcance
 
-Construir una aplicación propia en Linux x86_64 que entre como participante en una reunión de Zoom y reproduzca un archivo de video por su cámara virtual y su audio por un micrófono virtual. Primera versión: una reunión, un archivo local, reproducción controlada y salida limpia. Compartir pantalla, múltiples reuniones, servicios externos e IA quedan para etapas posteriores.
+Construir un bot Linux x86_64 para una reunión simultánea, con entrada independiente de la presentación de video, audio o imagen. API Python/FastAPI en Cloud Run y agente/SDK C++ en la VM GCE `zoom-bot-vm`. Medios desde Storage mediante URL pública y caché temporal en la VM; videos de entrada hasta 1080p. Pausa, reanudación, detención y salida independientes. Las primeras pruebas serán de video. Compartir pantalla, múltiples reuniones e IA quedan fuera de esta etapa.
 
 ## Cómo mantener el seguimiento
 
@@ -21,7 +21,7 @@ Construir una aplicación propia en Linux x86_64 que entre como participante en 
 - [x] Confirmar con el usuario si las reuniones serán de su cuenta o de terceros.
 - [x] Confirmar archivo de prueba y reproducción única o en bucle.
 - [x] Confirmar alcance inicial de los controles de reproducción.
-- [x] Confirmar si la reproducción comienza automáticamente al entrar o mediante una orden.
+- [x] Confirmar inicio automático para la prueba local inicial; en la API la entrada y reproducción serán órdenes independientes.
 
 ## 1. Confirmar la vía de integración con Zoom
 
@@ -129,7 +129,7 @@ Resultado esperado: audio inteligible y continuo por el micrófono del participa
 
 Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al menos diez minutos, con criterio de tolerancia acordado.
 
-## 9. Validación final y entrega del MVP
+## 9. Validación del prototipo local
 
 - [x] Probar flujo completo desde build hasta reproducción en una reunión de prueba.
 - [x] Probar archivo ausente, formato inválido, fin del clip, ausencia de repetición y salida de la reunión.
@@ -137,4 +137,64 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar que archivos versionables, logs de consola y configuración incluida en imagen no contienen los valores privados configurados.
 - [x] Documentar comandos, formatos aceptados, configuración y solución de errores frecuentes.
 - [x] Añadir pruebas automatizadas útiles para conversión, tamaños de cuadros/bloques y control de reproducción; validar Zoom con prueba real.
-- [ ] Marcar MVP completo solo cuando otro participante vea el video y oiga el audio correctamente.
+- [x] Confirmar con otro participante video, música/voz y sincronización de labios en el clip de prueba.
+- [ ] Completar prueba continua de al menos diez minutos y verificar eventos del anfitrión/red pendientes del paso 8.
+
+## 10. Preparar el despliegue confirmado
+
+- [x] Retirar Dockerfiles y scripts de distribuciones que no se usan y actualizar README.
+- [x] Comprobar gcloud, VM, CPU/RAM, sistema, Docker y disco disponibles.
+- [x] Confirmar una reunión simultánea y entrada máxima 1080p.
+- [x] Verificar acceso al enlace público de Storage desde la VM.
+- [x] Confirmar API en Cloud Run y agente/worker en GCE, sin dominio propio.
+- [x] Elaborar contrato de endpoints para entrada independiente y video/audio/imagen.
+- [ ] Definir cliente consumidor y cerrar autenticación, límites y tiempos propuestos en api-propuesta.md.
+- [ ] Preparar archivo de prueba 1080p/30 FPS para dimensionar la VM.
+
+## 11. Reproducción dinámica e IPC
+
+- [ ] Entrar con cámara/micrófono desactivados y esperar comandos sin salir de Zoom.
+- [ ] Implementar IPC estructurado con IDs, respuestas, eventos y estado; confirmar ejecución de comandos.
+- [ ] Implementar play de video después de entrar y nueva reproducción tras stop/EOF, sin reiniciar la sesión.
+- [ ] Implementar audio independiente e imagen estática, con políticas de pistas/duración del contrato.
+- [ ] Aplicar pause/resume/stop por playback_id y liberar fuentes previas de forma segura.
+- [ ] Verificar videos sucesivos, audio, imagen, eventos del anfitrión y desconexión.
+
+## 12. Agente persistente en GCE
+
+- [ ] Implementar agente Python con SQLite en volumen persistente: sesiones, operaciones, eventos e idempotencia.
+- [ ] Reservar capacidad mediante transacción y rechazar una segunda reunión aun con peticiones concurrentes.
+- [ ] Registrar trabajos antes de aceptar órdenes y ejecutarlos fuera del ciclo de petición HTTP.
+- [ ] Descargar medios HTTPS de Storage con allowlist, límites, timeouts y validación FFprobe.
+- [ ] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
+- [ ] Obtener credenciales desde Secret Manager, generar JWT por entrada y proteger configuración temporal.
+- [ ] Supervisar procesos, heartbeat, salida y reinicio; reconciliar sin reentrar automáticamente.
+- [ ] Probar idempotencia, fallos de descarga, cancelaciones, reinicios y limpieza de capacidad.
+
+## 13. API en Cloud Run
+
+- [ ] Implementar FastAPI/Pydantic, endpoints de api-propuesta.md y OpenAPI autenticado.
+- [ ] Mantener API sin estado local duradero; consultar y entregar órdenes al agente privado.
+- [ ] Propagar idempotencia y persistir en el agente antes de devolver 202; reconciliar timeouts sin duplicar órdenes.
+- [ ] Implementar autenticación acordada, validación, errores, correlación y logs sin secretos.
+- [ ] Verificar comportamiento al escalar y reiniciar instancias de API mientras el bot sigue conectado.
+
+## 14. Infraestructura y despliegue
+
+- [ ] Construir y publicar imágenes versionadas en Artifact Registry sin medios ni secretos.
+- [ ] Configurar cuentas de servicio y permisos mínimos para Cloud Run y VM.
+- [ ] Configurar Direct VPC egress en us-central1 y acceso al agente por IP interna de la VM.
+- [ ] Limitar firewall del agente al origen de Cloud Run y autenticar la comunicación interna.
+- [ ] Desplegar agente/worker con volumen persistente y supervisión al arrancar la VM.
+- [ ] Desplegar API Cloud Run con URL HTTPS run.app, autenticación y escalado configurados.
+- [ ] Configurar logs, métricas, alertas de fallos y control de costos.
+
+## 15. Validación integral y entrega
+
+- [ ] Probar por API: entrar sin medios, reproducir URL, pausar, reanudar, detener, reproducir otro medio y salir.
+- [ ] Verificar EOF/stop sin salida de reunión y que DELETE libera procesos y capacidad.
+- [ ] Probar video, audio e imagen; comprobar rechazos, operaciones/eventos e idempotencia.
+- [ ] Medir al menos diez minutos de entrada 1080p/30 FPS: CPU/RAM, cuadros tardíos, errores y sincronía.
+- [ ] Comprobar resolución realmente negociada por Zoom y dimensionar CPU según resultados.
+- [ ] Verificar reinicios, conectividad privada, autenticación y ausencia de secretos en logs/imágenes.
+- [ ] Documentar uso, despliegue, recuperación y actualización; marcar entrega completa tras validar con otro participante.

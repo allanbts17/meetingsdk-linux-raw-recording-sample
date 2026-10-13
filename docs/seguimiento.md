@@ -4,6 +4,10 @@ Este archivo contiene hallazgos, errores, bloqueos, evidencias, decisiones y dat
 
 ## Entorno y SDK
 
+### GCE y API: arquitectura confirmada, contrato en revisión
+
+El usuario creó `zoom-bot-vm` para alojar el contenedor. Confirmó una reunión simultánea y videos de hasta 1080p, con origen en Storage mediante enlace público. Se inspeccionó gcloud/GCE/SSH/Docker y se comprobó accesibilidad del enlace. La propuesta inicial alojaba API y worker en VM; fue reemplazada por la confirmación de API en Cloud Run y agente/worker en GCE. Se mantienen caché temporal y recursos actuales. Solicitó elaborar primero una propuesta detallada de API: está en [api-propuesta.md](api-propuesta.md), junto a [despliegue-propuesta.md](despliegue-propuesta.md). Tras la confirmación, plan.md incorpora las etapas nuevas y conserva los pasos comprobados.
+
 - Inspección inicial: 2026-10-13.
 - SDK local: `C:\Users\allan\Downloads\zoom-meeting-sdk-linux_x86_64-7.1.5.4432`.
 - Confirmada presencia de `h`, `qt_libs`, `json` y bibliotecas principales; compilación con 7.1.5 comprobada tras adaptar la API de fuente de video.
@@ -29,6 +33,12 @@ La documentación oficial consultada indica que Meeting SDK está reservado para
 RTMS es la alternativa indicada para acceso a medios. Su capacidad de sustituir la transmisión por cámara y micrófono no se ha comprobado. La preparación local puede continuar mientras se aclara este punto.
 
 ## Información pendiente del usuario
+
+### API: separación entre entrada y reproducción
+
+El usuario amplió el alcance a video, audio e imagen. El contrato usa `media.type` en play y define pistas/pausa/fin por tipo; las primeras pruebas prácticas serán de video. También pidió aclarar exposición y costo: propuesta documentada en [api-acceso-y-costos.md](api-acceso-y-costos.md), con API en Cloud Run y HTTPS run.app sin dominio, sustituyendo la propuesta anterior de Caddy en VM. IP actual verificada: 34.136.102.61. No se abrió ningún puerto ni se desplegó API.
+
+El usuario aclaró que el bot puede entrar sin compartir video. Se actualizó el contrato: `POST /v1/bots` solo conecta; `POST /v1/bots/{id}/play` recibe el medio e inicia reproducción posteriormente. EOF/stop mantienen la reunión; un nuevo play puede iniciar otro intento sin salir/reentrar. Las órdenes se vinculan a playback_id para evitar controlar por accidente un intento posterior. Estos endpoints y la carga dinámica siguen siendo una propuesta, no código implementado.
 
 ### Confirmación del usuario
 
@@ -63,6 +73,7 @@ No hay preguntas pendientes para la prueba inicial de video. Inicio automático 
 
 | Fecha | Evidencia / cambio | Siguiente acción |
 |---|---|---|
+| 2026-10-13 | Limpieza creada en commit `5df118b`: retirados Dockerfiles CentOS/Oracle y script PulseAudio CentOS; README enfocado al flujo Ubuntu actual y versión SDK actualizada. VM GCE comprobada: e2-standard-2, 2 vCPU, 8 GiB, Ubuntu 22.04 x86_64, Docker funcionando con sudo y disco libre ~31 GB. Enlace Storage devuelve 200 desde VM; clip público 640×480/109 s inspeccionado. | Usuario confirma propuesta de API/worker, caché temporal y benchmark 1080p; después modificar el plan. |
 | 2026-10-13 | Controles `pause/resume/stop/status/quit` por FIFO local añadidos. Suite valida congelación de ambos contadores, preservación de 30 cuadros/100 bloques al reanudar y stop definitivo incluso desde pausa. En Zoom usuario confirma imagen/sonido pausados y participante conectado; confirma reanudación sincronizada. `stop` libera ambos FFmpeg; proceso sigue ejecutándose, status stopped y resume no reinicia. `quit` termina la reunión, limpia SDK y devuelve salida 0. | Mantener pendientes estabilidad prolongada y eventos del anfitrión/red. |
 | 2026-10-13 | Pipes con `O_CLOEXEC`: regresión sintética de cancelación conjunta pasa. En Zoom, cierre con ambas pistas activas devuelve limpieza exitosa, salida 0 y PID 0. Comprobación de datos privados pasa para archivos versionables, consola y configuración de imagen. Muestra activa: CPU 35,30%, 103,9 MiB. Suite repetible y guía de errores añadidas. | Prueba prolongada y controles manuales pendientes; no se marca MVP completo. |
 | 2026-10-13 | Usuario confirma sincronización de labios/voz con `video_habla.mp4`. Clip termina sin repetir: 2844 cuadros y 11360 bloques PCM; salida posterior 0. Pruebas de validación detectan archivos ausentes/inválidos o sin audio. JWT ficticio inválido sale con código 1 y limpieza exitosa; callbacks simulados cubren contraseña/reunión/token inválidos. | Continuar validación de cierre durante reproducción activa. |
@@ -96,3 +107,7 @@ Cambios de preparación: CMake usa `config.txt.example` cuando no hay configurac
 - [Meeting SDK para Linux y política actual](https://developers.zoom.us/docs/meeting-sdk/linux/)
 - [Autorización JWT, ZAK y OBF](https://developers.zoom.us/docs/meeting-sdk/auth/)
 - Fuentes locales: `demo/meeting_sdk_demo.cpp`, `demo/ZoomSDKVideoSource.cpp`, `demo/ZoomSDKVirtualAudioMicEvent.cpp`, `demo/CMakeLists.txt`, `Dockerfile-Ubuntu/Dockerfile`.
+
+## Arquitectura Cloud Run confirmada — 2026-10-13
+
+El usuario confirmó API en Cloud Run y agente/worker en GCE, sin dominio propio. Estado persistente en SQLite de la VM; Direct VPC egress y autenticación interna para órdenes breves. El SDK mantiene la reunión independientemente de la instancia de API. Se actualizaron plan, contrato, despliegue y acceso/costos. No se desplegaron recursos ni se cambiaron firewall, IAM o tamaños. Autenticación del cliente, límites del contrato y benchmark 1080p siguen pendientes. Nuevas tareas de implementación sin marcar como completadas.
