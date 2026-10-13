@@ -100,7 +100,7 @@ Resultado esperado: participante visible y ciclo de entrada/salida reproducible.
 - [x] Implementar lectura/decodificación y envío de cuadros con dimensiones, tamaño y FPS correctos.
 - [x] Respetar capacidades negociadas y cambios de resolución.
 - [x] Implementar reproducción única y finalización al terminar el archivo.
-- [ ] Añadir pausa y detención en una etapa posterior.
+- [x] Añadir pausa y detención en una etapa posterior.
 - [x] Sustituir flags compartidos inseguros y threads detached de video por control de vida y sincronización adecuados.
 
 Resultado esperado: video continuo visible por la cámara del participante, sin pantalla negra ni envío después de parar.
@@ -122,7 +122,7 @@ Resultado esperado: audio inteligible y continuo por el micrófono del participa
 - [x] Usar reloj monotónico y una base temporal compartida para audio/video.
 - [x] Evitar acumular retraso: definir qué hacer con cuadros tardíos y buffers llenos.
 - [x] Coordinar inicio y fin de ambas pistas para reproducción única.
-- [ ] Añadir pausa y detención coordinadas de ambas pistas en una etapa posterior.
+- [x] Añadir pausa y detención coordinadas de ambas pistas en una etapa posterior.
 - [x] Exponer ruta del medio y opciones mediante configuración; retirar nombres de archivo hardcodeados.
 - [x] Elegir interfaz de control inicial sencilla (configuración/CLI); añadir chat o API solo si se requiere.
 - [ ] Manejar mute del anfitrión, desactivación de video y desconexión de forma predecible.

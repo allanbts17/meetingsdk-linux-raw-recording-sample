@@ -22,7 +22,11 @@ Las pruebas usan archivos sintéticos y emisores SDK simulados. Verifican JWT/fi
 - Muestra puntual durante reproducción del clip hablado: CPU 35,30% y memoria 103,9 MiB. Es una medición de este equipo, no un límite de capacidad ni una prueba de carga.
 - Revisados los valores privados configurados contra archivos versionables, logs de consola de la prueba y configuración incluida en la imagen; no se encontraron. Archivos locales de credenciales permanecen excluidos. No se ha auditado cada archivo interno de log/dump que genere Zoom.
 
-Pendientes: prueba de diez minutos, cambios de resolución durante reproducción real, mute/desactivación del anfitrión, cortes de red, pausa y detención manual sin salir.
+Pendientes: prueba de diez minutos, cambios de resolución durante reproducción real, mute/desactivación del anfitrión y cortes de red. Los controles manuales se validan por separado en el seguimiento.
+
+La suite incluye pausa/reanudación coordinadas: durante la pausa no crecen los contadores y, al reanudar, se entregan los 30 cuadros y 100 bloques del clip sintético sin perder contenido. También prueba detención mientras está pausado e impide reinicio accidental mediante `resume` o callbacks del SDK.
+
+En la reunión real, el usuario confirmó pausa de imagen/sonido y reanudación sincronizada. `stop` mantuvo al participante conectado, con estado `stopped` y sin procesos FFmpeg. `resume` posterior no reinició el clip y `quit` finalizó con limpieza del SDK y salida 0.
 
 ## Errores frecuentes
 

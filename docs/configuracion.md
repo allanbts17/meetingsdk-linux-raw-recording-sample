@@ -36,7 +36,7 @@ docker run --rm -it --name zoom-video --mount "type=bind,source=$zoomConfigPath,
 
 La reproducción empieza automáticamente al entrar y termina una vez. El audio sigue desactivado. Se mantiene la última imagen al finalizar el clip. La ruta en el contenedor se configura mediante `video_source` en `demo/config.txt`.
 
-Para salir, usar Ctrl+C en esa terminal o `docker stop --time 20 zoom-video` desde otra. El proceso espera que termine la salida de la reunión antes de limpiar el SDK. Pausa y detención de la reproducción sin salir se añadirán después.
+Para salir, usar Ctrl+C en esa terminal o `docker stop --timeout 20 zoom-video` desde otra. El proceso espera que termine la salida de la reunión antes de limpiar el SDK.
 
 ## Video con audio del MP4
 
@@ -53,4 +53,32 @@ El micrófono virtual transmite PCM de 16 bits, mono, 48 kHz en bloques de 10 ms
 
 Comprobar sonido desde otro cliente Zoom. Si el anfitrión restringe el micrófono, debe permitir su activación. La aplicación intenta desmutear al inicio durante un máximo de 15 intentos y deja de hacerlo una vez iniciada la emisión; no insiste para contrarrestar un mute posterior del anfitrión.
 
-Para salir: `docker stop --time 20 zoom-av`. Para reproducir otra vez, iniciar un nuevo contenedor; la reproducción automática no es un bucle.
+Para salir: `docker stop --timeout 20 zoom-av`. Para reproducir otra vez, iniciar un nuevo contenedor; la reproducción automática no es un bucle.
+
+## Pausar, reanudar y detener sin salir
+
+Con un contenedor llamado `zoom-av`, ejecutar desde otra terminal:
+
+```powershell
+docker exec zoom-av bash /app/playback-control.sh pause
+docker exec zoom-av bash /app/playback-control.sh resume
+docker exec zoom-av bash /app/playback-control.sh stop
+docker exec zoom-av bash /app/playback-control.sh status
+docker logs --tail 10 zoom-av
+```
+
+Ejecutar cada orden cuando corresponda; no ejecutarlas todas juntas. Sustituir `zoom-av` por el nombre de tu contenedor.
+
+- `pause`: congela la imagen y silencia la reproducción. El participante permanece conectado.
+- `resume`: continúa desde donde se pausó, ajustando el reloj de ambas pistas para conservar sincronía.
+- `stop`: termina ambas pistas y libera los decodificadores; el participante permanece conectado. La última imagen puede permanecer visible. `resume` no reinicia un clip detenido o terminado.
+- `status`: escribe `waiting`, `playing`, `paused`, `stopped` o `finished` en los logs del participante.
+- `quit`: sale de Zoom y termina el proceso limpiamente.
+
+Para salir mediante una orden:
+
+```powershell
+docker exec zoom-av bash /app/playback-control.sh quit
+```
+
+Las órdenes se entregan mediante una FIFO local dentro del contenedor. El helper valida la orden y espera como máximo tres segundos al escribir. El resultado de la ejecución aparece en los logs; escribir correctamente la orden no significa que el proceso ya la haya ejecutado.
