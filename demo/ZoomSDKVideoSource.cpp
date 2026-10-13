@@ -39,7 +39,7 @@ void ZoomSDKVideoSource::onPropertyChange(IList<VideoSourceCapability>*, VideoSo
 }
 void ZoomSDKVideoSource::onStartSend() {
     Stop();
-    if (!sender_ || completed_) return;
+    if (!sender_ || completed_ || clock_->IsHalted()) return;
     stop_ = false;
     worker_ = std::thread(&ZoomSDKVideoSource::Play, this);
 }
@@ -89,21 +89,17 @@ void ZoomSDKVideoSource::Play() {
             clockReady = clock_->ReadyAndWait(false, stop_);
             if (!clockReady) { std::cerr << "Video waiting for media readiness timed out or stopped." << std::endl; break; }
         }
-        const auto due = clock_->Deadline(initialPosition + static_cast<double>(sent) / fps_);
-        { std::unique_lock<std::mutex> lock(waitMutex_); wake_.wait_until(lock, due, [this] { return stop_.load(); }); }
-        if (stop_) break;
-        if (std::chrono::steady_clock::now() > due + std::chrono::milliseconds(150)) {
-            ++sent; position_ = initialPosition + static_cast<double>(sent) / fps_; filled = 0;
-            continue;
-        }
-        const SDKError result = sender_->sendVideoFrame(frame.data(), width_, height_, frame.size(), 0);
-        if (result != SDKERR_SUCCESS) {
-            if (++errors == 1) std::cerr << "Video frame send failed, SDK error: " << result << std::endl;
-            if (errors >= 30) break;
-        } else {
-            errors = 0;
-            if (!sent) std::cout << "First video frame accepted by SDK." << std::endl;
-        }
+        if (!clock_->Dispatch(initialPosition + static_cast<double>(sent) / fps_, stop_, [&](bool late) {
+            if (late) return;
+            const SDKError result = sender_->sendVideoFrame(frame.data(), width_, height_, frame.size(), 0);
+            if (result != SDKERR_SUCCESS) {
+                if (++errors == 1) std::cerr << "Video frame send failed, SDK error: " << result << std::endl;
+            } else {
+                errors = 0;
+                if (!sent) std::cout << "First video frame accepted by SDK." << std::endl;
+            }
+        })) break;
+        if (errors >= 30) break;
         ++sent; position_ = initialPosition + static_cast<double>(sent) / fps_; filled = 0;
     }
     close(descriptors[0]);
@@ -113,6 +109,6 @@ void ZoomSDKVideoSource::Play() {
     if (eof && filled == 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         completed_ = true;
         std::cout << "Video playback finished; no repeat. Frames: " << sent << std::endl;
-    } else if (!stop_) std::cerr << "Video decoding/sending ended before completion." << std::endl;
+    } else if (!stop_ && !clock_->IsHalted()) std::cerr << "Video decoding/sending ended before completion." << std::endl;
     stop_ = true;
 }

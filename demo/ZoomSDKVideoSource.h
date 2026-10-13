@@ -13,6 +13,7 @@ public:
     explicit ZoomSDKVideoSource(std::string source, std::shared_ptr<PlaybackClock> clock = nullptr);
     ~ZoomSDKVideoSource() override;
     void Stop();
+    bool IsCompleted() const { return completed_.load(); }
     void onInitialize(ZOOMSDK::IZoomSDKVideoSender*, ZOOMSDK::IList<ZOOMSDK::VideoSourceCapability>*, ZOOMSDK::VideoSourceCapability&) override;
     void onPropertyChange(ZOOMSDK::IList<ZOOMSDK::VideoSourceCapability>*, ZOOMSDK::VideoSourceCapability) override;
     void onStartSend() override;
@@ -30,5 +31,5 @@ private:
     std::condition_variable wake_;
     unsigned int width_ = 640, height_ = 480, fps_ = 30;
     double position_ = 0;
-    bool completed_ = false;
+    std::atomic<bool> completed_{false};
 };

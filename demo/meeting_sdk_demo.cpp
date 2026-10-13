@@ -76,6 +76,9 @@ ZoomSDKVideoSource* virtual_camera_source = nullptr;
 
 GMainLoop* loop;
 bool shutdown_requested = false;
+int playback_control_fd = -1;
+const char* playback_control_path = "/tmp/zoom-playback-control";
+std::string playback_control_buffer;
 int app_exit_code = 0;
 void OnSDKFailure(int code) {
 	std::cerr << "Stopping after SDK failure, code: " << code << std::endl;
@@ -907,6 +910,46 @@ void initAppSettings()
 	g_unix_signal_add(SIGTERM, requestShutdown, NULL);
 }
 
+gboolean onPlaybackCommand(gint fd, GIOCondition condition, gpointer) {
+	char buffer[256];
+	ssize_t count;
+	while ((count = read(fd, buffer, sizeof(buffer))) > 0) playback_control_buffer.append(buffer, count);
+	if (playback_control_buffer.size() > 1024) { playback_control_buffer.clear(); std::cerr << "Playback command too long." << std::endl; return G_SOURCE_CONTINUE; }
+	size_t newline;
+	while ((newline = playback_control_buffer.find('\n')) != std::string::npos) {
+		std::string command = playback_control_buffer.substr(0, newline);
+		playback_control_buffer.erase(0, newline + 1);
+		if (!command.empty() && command.back() == '\r') command.pop_back();
+		if (command == "quit") { requestShutdown(nullptr); return G_SOURCE_REMOVE; }
+		if (!playback_clock) { std::cout << "Playback is not ready." << std::endl; continue; }
+		if (command == "pause") { playback_clock->Pause(); std::cout << "Playback state: " << playback_clock->State() << std::endl; }
+		else if (command == "resume") { playback_clock->Resume(); std::cout << "Playback state: " << playback_clock->State() << std::endl; }
+		else if (command == "stop") {
+			playback_clock->Halt();
+			if (virtual_camera_source) virtual_camera_source->Stop();
+			if (virtual_microphone_source) virtual_microphone_source->Stop();
+			std::cout << "Playback stopped; participant remains in meeting." << std::endl;
+		}
+		else if (command == "status") {
+			const bool finished = (!SendVideoRawData || (virtual_camera_source && virtual_camera_source->IsCompleted())) &&
+				(!SendAudioRawData || (virtual_microphone_source && virtual_microphone_source->IsCompleted()));
+			std::cout << "Playback state: " << (playback_clock->IsHalted() ? "stopped" : finished ? "finished" : playback_clock->State()) << std::endl;
+		}
+		else std::cout << "Unknown playback command. Use pause, resume, stop, status or quit." << std::endl;
+	}
+	return G_SOURCE_CONTINUE;
+}
+
+void initPlaybackControl() {
+	if (mkfifo(playback_control_path, 0600) != 0 && errno != EEXIST) { std::cerr << "Cannot create playback command pipe." << std::endl; return; }
+	struct stat info;
+	if (lstat(playback_control_path, &info) != 0 || !S_ISFIFO(info.st_mode)) { std::cerr << "Playback command path is not a FIFO." << std::endl; return; }
+	playback_control_fd = open(playback_control_path, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	if (playback_control_fd < 0) { std::cerr << "Cannot open playback command pipe." << std::endl; return; }
+	g_unix_fd_add(playback_control_fd, G_IO_IN, onPlaybackCommand, nullptr);
+	std::cout << "Playback commands ready: pause, resume, stop, status, quit." << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
 
@@ -927,6 +970,7 @@ int main(int argc, char* argv[])
 	if (app_exit_code) { g_main_loop_unref(loop); return app_exit_code; }
 	AuthMeetingSDK();
 	initAppSettings();
+	initPlaybackControl();
 
 
 
@@ -939,6 +983,7 @@ int main(int argc, char* argv[])
 	delete virtual_camera_source;
 	delete virtual_microphone_source;
 	g_main_loop_unref(loop);
+	if (playback_control_fd >= 0) { close(playback_control_fd); unlink(playback_control_path); }
 	std::cout << "SDK cleaned up. Exiting." << std::endl;
 	return app_exit_code;
 }

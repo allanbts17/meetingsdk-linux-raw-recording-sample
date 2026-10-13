@@ -25,7 +25,7 @@ void ZoomSDKVirtualAudioMicEvent::onMicInitialize(IZoomSDKAudioRawDataSender* se
 }
 void ZoomSDKVirtualAudioMicEvent::onMicStartSend() {
     Stop();
-    if (!sender_ || completed_) return;
+    if (!sender_ || completed_ || clock_->IsHalted()) return;
     if (prepareAudio_) prepareAudio_();
     stop_ = false; worker_ = std::thread(&ZoomSDKVirtualAudioMicEvent::Play, this);
 }
@@ -78,19 +78,17 @@ void ZoomSDKVirtualAudioMicEvent::Play() {
             clockReady = clock_->ReadyAndWait(true, stop_);
             if (!clockReady) { std::cerr << "Audio waiting for media readiness timed out or stopped." << std::endl; break; }
         }
-        const auto due = clock_->Deadline(initialPosition + blocks * 0.01);
-        { std::unique_lock<std::mutex> lock(waitMutex_); wake_.wait_until(lock, due, [this] { return stop_.load(); }); }
-        if (stop_) break;
-        if (std::chrono::steady_clock::now() <= due + std::chrono::milliseconds(150)) {
+        if (!clock_->Dispatch(initialPosition + blocks * 0.01, stop_, [&](bool late) {
+            if (late) return;
             const SDKError result = sender_->send(block.data(), block.size(), 48000, ZoomSDKAudioChannel_Mono);
             if (result != SDKERR_SUCCESS) {
                 if (++errors == 1) std::cerr << "Audio block send failed, SDK error: " << result << std::endl;
-                if (errors >= 100) break;
             } else {
                 errors = 0;
                 if (!blocks) std::cout << "First audio block accepted by SDK." << std::endl;
             }
-        }
+        })) break;
+        if (errors >= 100) break;
         ++blocks; position_ = initialPosition + blocks * 0.01; filled = 0;
         if (eof) break;
     }
@@ -101,6 +99,6 @@ void ZoomSDKVirtualAudioMicEvent::Play() {
     if (eof && !filled && WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         completed_ = true;
         std::cout << "Audio playback finished; no repeat. Blocks: " << blocks << std::endl;
-    } else if (!stop_) std::cerr << "Audio decoding/sending ended before completion." << std::endl;
+    } else if (!stop_ && !clock_->IsHalted()) std::cerr << "Audio decoding/sending ended before completion." << std::endl;
     stop_ = true;
 }

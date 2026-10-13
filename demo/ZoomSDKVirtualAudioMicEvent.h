@@ -15,6 +15,7 @@ public:
         std::function<void()> prepareAudio = {});
     ~ZoomSDKVirtualAudioMicEvent() override;
     void Stop();
+    bool IsCompleted() const { return completed_.load(); }
     bool IsSending() const { return !stop_.load(); }
     void onMicInitialize(ZOOMSDK::IZoomSDKAudioRawDataSender*) override;
     void onMicStartSend() override;
@@ -31,5 +32,5 @@ private:
     std::mutex waitMutex_;
     std::condition_variable wake_;
     double position_ = 0;
-    bool completed_ = false;
+    std::atomic<bool> completed_{false};
 };

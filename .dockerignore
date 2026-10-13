@@ -5,6 +5,9 @@ video_habla.mp4
 generateToken.js
 config
 scripts
+!scripts/
+scripts/*
+!scripts/playback-control.sh
 demo/config.txt
 demo/bin
 demo/build

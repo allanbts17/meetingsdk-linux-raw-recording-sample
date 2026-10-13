@@ -48,6 +48,7 @@ WORKDIR /app
 
 # Copy your application files to the container
 COPY demo/ /app/demo/
+COPY scripts/playback-control.sh /app/playback-control.sh
 
 # Execute additional commands
 RUN cd /app/demo && rm -rf bin && rm -rf build && cmake -B build && cd build && make

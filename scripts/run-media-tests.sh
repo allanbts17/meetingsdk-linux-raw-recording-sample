@@ -18,3 +18,7 @@ g++ -std=c++11 -pthread -I/app/demo -I/app/demo/include/h \
 timeout 20 /tmp/video-source-test
 timeout 20 /tmp/av-source-test
 timeout 20 /tmp/error-handling-test
+g++ -std=c++11 -pthread -I/app/demo -I/app/demo/include/h \
+    "$test_root/playback-control-test.cpp" /app/demo/ZoomSDKVideoSource.cpp \
+    /app/demo/ZoomSDKVirtualAudioMicEvent.cpp -o /tmp/playback-control-test
+timeout 20 /tmp/playback-control-test
