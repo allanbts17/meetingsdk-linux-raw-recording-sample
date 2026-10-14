@@ -167,9 +167,9 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 
 ## 12. Agente persistente en GCE
 
-- [ ] Implementar agente Python con SQLite en volumen persistente: sesiones, operaciones, eventos e idempotencia.
+- [x] Implementar agente Python con SQLite en volumen persistente: sesiones, operaciones, eventos e idempotencia.
 - [x] Implementar servicio persistente con directorio de estado configurable, bloqueo de propietario único y worker separado del heartbeat.
-- [ ] Desplegar el servicio en el volumen de GCE y probarlo con el SDK real desde la VM.
+- [x] Desplegar el servicio en el volumen de GCE y probarlo con el SDK real desde la VM.
 - [x] Implementar base SQLite para sesiones, operaciones en cola, eventos e idempotencia.
 - [x] Reservar capacidad mediante transacción y rechazar una segunda reunión aun con peticiones concurrentes.
 - [x] Verificar claim exclusivo, recuperación de idempotencia y conservación de capacidad hasta confirmar limpieza.
@@ -180,7 +180,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar CRC32C/MD5 disponibles, publicar archivos completos de forma atómica y protegerlos mientras el SDK los usa.
 - [x] Probar reproducción desde el enlace público de Storage sin montar videos locales.
 - [x] Implementar caché limitada, archivos de solo lectura, limpieza de temporales y reserva de disco libre.
-- [ ] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
+- [x] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
 - [x] Obtener credenciales desde Secret Manager, generar JWT por entrada y proteger configuración temporal.
 - [x] Implementar proveedor Secret Manager con identidad ADC, versiones fijas, verificación CRC32C y errores sin secretos.
 - [x] Crear secretos y permisos mínimos; comprobar acceso real desde la VM e integrar el proveedor al servicio persistente.
@@ -195,29 +195,30 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Implementar FastAPI/Pydantic, endpoints de api-propuesta.md y esquema OpenAPI con autenticación declarada.
 - [x] Mantener API sin estado local duradero; consultar y entregar órdenes al agente privado.
 - [x] Propagar idempotencia y persistir en el agente antes de devolver 202; no duplicar órdenes ante timeouts.
-- [ ] Implementar autenticación acordada, validación, errores, correlación y logs sin secretos.
+- [x] Implementar autenticación acordada, validación, errores, correlación y logs sin secretos.
 - [x] Implementar credencial privada independiente, propietario fijo, validación estricta, errores saneados, correlación y límites persistentes.
 - [x] Verificar mediante pruebas HTTP que dos instancias de API recuperan la misma operación y conservan el estado del agente.
-- [ ] Verificar IAM/Invokers y documentación protegida en la URL real de Cloud Run.
+- [x] Verificar IAM/Invokers y documentación protegida en la URL real de Cloud Run.
 - [ ] Verificar comportamiento al escalar y reiniciar instancias desplegadas mientras el bot real sigue conectado.
 - [x] Completar retención automática de historial de 30 días sin borrar sesiones activas, reservas inciertas ni idempotencia vigente.
 - [ ] Completar pruebas de políticas del anfitrión/red pendientes.
 
 ## 14. Infraestructura y despliegue
 
-- [ ] Construir y publicar imágenes versionadas en Artifact Registry sin medios ni secretos.
-- [ ] Configurar cuentas de servicio y permisos mínimos para Cloud Run y VM.
-- [ ] Configurar Direct VPC egress en us-central1 y acceso al agente por IP interna de la VM.
-- [ ] Limitar firewall del agente al origen de Cloud Run y autenticar la comunicación interna.
-- [ ] Desplegar agente/worker con volumen persistente y supervisión al arrancar la VM.
+- [x] Construir y publicar imágenes versionadas en Artifact Registry sin medios ni secretos.
+- [x] Configurar cuentas de servicio y permisos mínimos para Cloud Run y VM.
+- [x] Configurar Direct VPC egress en us-central1 y acceso al agente por IP interna de la VM.
+- [x] Limitar firewall del agente al origen de Cloud Run y autenticar la comunicación interna.
+- [x] Desplegar agente/worker con volumen persistente y supervisión al arrancar la VM.
 - [ ] Confirmar desde el host la finalización del contenedor anterior antes de reconciliar directorios de otro namespace PID.
 - [x] Implementar scripts y unidades systemd para comprobar contenedor/namespace anteriores, recuperar y supervisar heartbeat.
-- [ ] Desplegar API Cloud Run con URL HTTPS run.app, autenticación y escalado configurados.
+- [x] Desplegar API Cloud Run con URL HTTPS run.app, autenticación y escalado configurados.
 - [ ] Configurar logs, métricas, alertas de fallos y control de costos.
 
 ## 15. Validación integral y entrega
 
-- [ ] Probar por API: entrar sin medios, reproducir URL, pausar, reanudar, detener, reproducir otro medio y salir.
+- [x] Probar por API: entrar sin medios, reproducir URL, pausar, reanudar, detener, repetir el video y salir.
+- [ ] Probar por API otro medio: audio independiente e imagen.
 - [ ] Verificar EOF/stop sin salida de reunión y que DELETE libera procesos y capacidad.
 - [ ] Probar video, audio e imagen; comprobar rechazos, operaciones/eventos e idempotencia.
 - [ ] Medir al menos diez minutos de entrada 1080p/30 FPS: CPU/RAM, cuadros tardíos, errores y sincronía.

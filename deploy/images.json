@@ -1,0 +1,7 @@
+{
+  "revision": "a800fab889b9",
+  "images": {
+    "api": "us-central1-docker.pkg.dev/zoom-app-dev/zoom-bot/api@sha256:3b7c5e5badb3e17b08ec92d72322d228590e6eed432cd314b3c3653fd8340eca",
+    "agent": "us-central1-docker.pkg.dev/zoom-app-dev/zoom-bot/agent@sha256:11fbaa62e3f1922f83ad2e569695b644a2f2bc971efbecf22a93cb6d6eeab89c"
+  }
+}
