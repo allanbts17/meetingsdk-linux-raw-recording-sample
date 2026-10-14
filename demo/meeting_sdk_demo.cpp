@@ -8,6 +8,7 @@
 #include "MediaValidation.h"
 #include "SdkControlServer.h"
 #include "MediaRestorePolicy.h"
+#include "BotVideoEvents.h"
 #include <sstream>
 #include <thread>
 #include <sys/syscall.h>
@@ -598,6 +599,15 @@ void JoinMeeting()
 
 	// Set the event listener for meeting status
 	m_pMeetingService->SetEvent(new MeetingServiceEventListener(&onMeetingJoined, &onMeetingEndsQuitApp, &onInMeeting, &OnSDKFailure));
+	static BotVideoEvents videoEvents([] {
+		return !shutdown_requested && SendVideoRawData && playback_clock && !playback_clock->IsHalted() &&
+			virtual_camera_source && !virtual_camera_source->IsCompleted() && !virtual_camera_source->HasFailed();
+	}, [] {
+		if (shutdown_requested || !m_pMeetingService) return 0u;
+		const auto myself = getMyself(); return myself ? myself->GetUserID() : 0u;
+	});
+	err2 = m_pMeetingService->GetMeetingVideoController()->SetEvent(&videoEvents);
+	if (err2 != SDKERR_SUCCESS) { OnSDKFailure(err2); return; }
 
 	// Set the event listener for host, co-host 
 	m_pParticipantsController = m_pMeetingService->GetMeetingParticipantsController();
@@ -903,7 +913,8 @@ gboolean recoverMedia(gpointer)
 			if (video_restore.ShouldAttempt(video, myself->IsVideoOn(), true, now)) {
 				const auto result = m_pMeetingService->GetMeetingVideoController()->UnmuteVideo();
 				video_restore.Attempted(result == SDKERR_SUCCESS, now);
-				std::cout << "Video restoration SDK result: " << result << std::endl;
+				std::cout << "Video restoration SDK result: " << result
+					<< ", source initialized: " << virtual_camera_source->IsInitialized() << std::endl;
 			}
 			if (audio && !myself->IsAudioMuted()) {
 				playback_clock->RemoveReason("audio_muted");

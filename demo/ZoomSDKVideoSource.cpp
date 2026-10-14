@@ -34,7 +34,7 @@ void ZoomSDKVideoSource::ApplyCapability(const VideoSourceCapability& cap) {
     if (cap.frame) fps_ = std::min(cap.frame, 30u);
 }
 void ZoomSDKVideoSource::onInitialize(IZoomSDKVideoSender* sender, IList<VideoSourceCapability>*, VideoSourceCapability& cap) {
-    Stop(); sender_ = sender; ApplyCapability(cap);
+    Stop(); sender_ = sender; initialized_ = sender != nullptr; ApplyCapability(cap);
     std::cout << "Virtual camera initialized." << std::endl;
 }
 void ZoomSDKVideoSource::onPropertyChange(IList<VideoSourceCapability>*, VideoSourceCapability cap) {
@@ -50,10 +50,14 @@ void ZoomSDKVideoSource::onStartSend() {
     worker_ = std::thread(&ZoomSDKVideoSource::Play, this);
 }
 void ZoomSDKVideoSource::onStopSend() {
+    std::cout << "Video source stop callback." << std::endl;
     if (!completed_) clock_->Pause("video_unavailable");
     Stop();
 }
-void ZoomSDKVideoSource::onUninitialized() { onStopSend(); sender_ = nullptr; }
+void ZoomSDKVideoSource::onUninitialized() {
+    onStopSend(); sender_ = nullptr; initialized_ = false;
+    std::cout << "Video source uninitialized callback." << std::endl;
+}
 
 void ZoomSDKVideoSource::Play() {
     int descriptors[2];

@@ -291,3 +291,10 @@ El fixture de enlace público está en config/media-test.json.example; diagnóst
 - Al detener cámara, no se recuperó: usuario confirmó cámara apagada. SDK UnmuteVideo devolvió repetidamente 2 (SDKERR_WRONG_USAGE); no se interpreta como prueba concluyente de NO_PERMISSION. API pausó ambas pistas a 52.85 s con video_disabled/video_unavailable y rechazó resume con 409 PLAYBACK_BLOCKED. No se marca terminada la recuperación de cámara.
 - Se solicitó probar invitación del anfitrión a iniciar video; el usuario no encontró esa opción. Quedó pendiente confirmar el ajuste de permitir iniciar video. El SDK tiene IRequestStartVideoHandler.Accept para una invitación del anfitrión; ese callback todavía no se ha integrado/probado. La causa exacta del rechazo de cámara requiere más diagnóstico.
 - Bot de prueba cerrado mediante DELETE; salida succeeded y plaza libre comprobadas. VM RUNNING, se mantiene encendida hasta nueva orden del usuario. No se ejecutó apagado de VM durante esta etapa.
+
+## Diagnóstico de cámara con permiso global activo (2026-10-14)
+
+- El usuario confirmó que permitir iniciar video siempre estuvo activado; no se atribuye el rechazo a ese ajuste global.
+- Registrado IMeetingVideoCtrlEvent: recibe estado propio e invitaciones del anfitrión. Acepta IRequestStartVideoHandler solo cuando sigue existiendo intención de emitir video; cancela en entrada sin medios, audio-only, stop, EOF, error o salida. El handler se destruye dentro de Accept/Cancel y no se conserva.
+- Añadido diagnóstico de fuente inicializada (atómico), stop y uninitialized para distinguir un canal raw desconectado de un estado impuesto por Zoom. No se vuelve a registrar a ciegas la fuente ni se sale/reentra como supuesto arreglo.
+- Pruebas nativas de aceptación/cancelación, política de reintentos, AV, controles e imágenes aprobadas. SDK compilado con listener y protección de cierre. El usuario mantiene la reunión abierta para validar el comportamiento real; esa validación sigue pendiente.

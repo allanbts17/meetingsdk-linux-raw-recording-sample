@@ -3,6 +3,8 @@ set -euo pipefail
 test_root="$(cd "$(dirname "$0")" && pwd)"
 g++ -std=c++11 -pthread -I/app/demo "$test_root/media-restore-test.cpp" -o /tmp/media-restore-test
 /tmp/media-restore-test
+g++ -std=c++11 -pthread -I/app/demo -I/app/demo/include/h "$test_root/bot-video-events-test.cpp" -o /tmp/bot-video-events-test
+/tmp/bot-video-events-test
 ffmpeg -v error -f lavfi -i testsrc2=size=320x240:rate=30 \
     -f lavfi -i sine=frequency=440:sample_rate=48000 -t 1 \
     -c:v libx264 -threads 1 -c:a pcm_s16le /tmp/av-test.mkv

@@ -19,6 +19,7 @@ public:
     unsigned long AcceptedFrames() const { return accepted_.load(); }
     bool IsCompleted() const { return completed_.load(); }
     bool IsSending() const { return !stop_.load(); }
+    bool IsInitialized() const { return initialized_.load(); }
     void onInitialize(ZOOMSDK::IZoomSDKVideoSender*, ZOOMSDK::IList<ZOOMSDK::VideoSourceCapability>*, ZOOMSDK::VideoSourceCapability&) override;
     void onPropertyChange(ZOOMSDK::IList<ZOOMSDK::VideoSourceCapability>*, ZOOMSDK::VideoSourceCapability) override;
     void onStartSend() override;
@@ -32,6 +33,7 @@ private:
     std::shared_ptr<PlaybackClock> clock_;
     std::thread worker_;
     std::atomic<bool> stop_{true};
+    std::atomic<bool> initialized_{false};
     std::mutex waitMutex_;
     std::condition_variable wake_;
     unsigned int width_ = 640, height_ = 480, fps_ = 30;
