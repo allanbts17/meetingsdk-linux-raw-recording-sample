@@ -12,12 +12,16 @@ from .secrets import SecretError
 
 
 class OperationCancellation:
-    def __init__(self, agent, deadline=None):
-        self.agent, self.deadline = agent, deadline
+    def __init__(self, agent, deadline=None, operation_id=None):
+        self.agent, self.deadline, self.operation_id = agent, deadline, operation_id
 
     def reason(self):
         if self.agent.stopping.is_set():
             return "AGENT_STOPPING"
+        if self.operation_id is not None:
+            requested = self.agent.store.cancellation_reason(self.operation_id)
+            if requested:
+                return requested
         if self.deadline is not None and time.time() >= self.deadline:
             return "SESSION_TIMEOUT"
         process = getattr(self.agent.runtime, "process", None)
@@ -53,12 +57,20 @@ class Agent:
     def submit_join(self, owner, key, payload):
         payload = join_payload(payload)
         aad = context(owner, "join")
-        return self.store.accept_join(owner, key, self.cipher.fingerprint(payload, aad), self.cipher.seal(payload, aad))
+        return self.store.accept_join(owner, key, self.cipher.fingerprint(payload, aad), self.cipher.seal(payload, aad), meeting=payload["meeting"])
 
     def submit_control(self, owner, bot_id, command, key, payload):
         payload = control_payload(command, payload)
         aad = context(owner, command, bot_id)
-        return self.store.accept_control(owner, bot_id, command, key, self.cipher.fingerprint(payload, aad), self.cipher.seal(payload, aad))
+        return self.store.accept_control(owner, bot_id, command, key, self.cipher.fingerprint(payload, aad), self.cipher.seal(payload, aad),
+                                         playback_id=payload.get("playback_id"), media=payload.get("media"))
+
+    def applied(self, job, state, **extra):
+        self.store.snapshot(job["bot_id"], state)
+        result = {"playback_id": state.get("playback_id"), "playback_status": state.get("playback_state"),
+                  "position_seconds": state.get("position_seconds")}
+        result.update(extra)
+        self.store.finish(job["id"], self.worker_id, succeeded=True, result=result)
 
     def wait_status(self, job, predicate, timeout):
         deadline = time.monotonic() + timeout
@@ -70,6 +82,7 @@ class Agent:
                 continue
             if state.get("playback_state") == "failed":
                 raise RuntimeErrorCode("MEDIA_SEND_FAILED")
+            self.store.snapshot(job["bot_id"], state)
             if predicate(state):
                 return state
             self.stopping.wait(0.1)
@@ -89,17 +102,18 @@ class Agent:
             else:
                 session_deadline = next((row["deadline"] for row in self.store.reserved_sessions()
                                          if row["id"] == job["bot_id"]), None)
-            self.cancellation = OperationCancellation(self, session_deadline)
+            self.cancellation = OperationCancellation(self, session_deadline, job["id"])
             if job["command"] != "leave" and self.cancellation.is_set():
                 raise RuntimeErrorCode(self.cancellation.reason())
             if job["command"] == "join":
                 self.runtime.start(job["bot_id"], payload["meeting"])
                 timeout = min(payload.get("options", {}).get("waiting_room_timeout_seconds", 900),
                               max(0, session_deadline - time.time()))
-                self.wait_status(job, lambda state: state.get("in_meeting") is True, timeout)
+                state = self.wait_status(job, lambda state: state.get("in_meeting") is True, timeout)
+                self.store.snapshot(job["bot_id"], state)
                 self.store.finish(job["id"], self.worker_id, succeeded=True, session_state="active")
             elif job["command"] == "leave":
-                cleaned = self.runtime.stop(job["bot_id"])
+                cleaned = self.runtime.cleanup(job["bot_id"])
                 if cleaned:
                     self.release_media(job["bot_id"])
                 self.store.finish(job["id"], self.worker_id, succeeded=True, session_state="ended", cleanup_confirmed=cleaned)
@@ -116,10 +130,12 @@ class Agent:
                 resource = self.media_resolver.resolve(media, cancel=self.cancellation) if hasattr(self.media_resolver, "resolve") else self.media_resolver(media)
                 self.media_resources[job["bot_id"]] = resource
                 play_resource_acquired = True
+                if hasattr(resource, "metadata"):
+                    self.store.media_metadata(job["id"], resource.metadata)
                 if self.cancellation.is_set():
                     raise RuntimeErrorCode(self.cancellation.reason())
                 path = resource.path if hasattr(resource, "path") else resource
-                playback_id = str(uuid.uuid4())
+                playback_id = job["playback_id"]
                 kind = media["type"]
                 sdk_type = "video-silent" if kind == "video" and media.get("audio_enabled", True) is False else kind
                 fields = {"playback_id": playback_id, "media_type": sdk_type, "path": str(path)}
@@ -135,21 +151,44 @@ class Agent:
                 needs_audio = kind == "audio" or (kind == "video" and media.get("audio_enabled", True))
                 def started(state):
                     return state.get("playback_id") == playback_id and (not needs_video or state.get("video_frames_sent", 0) > 0) and (not needs_audio or state.get("audio_blocks_sent", 0) > 0)
-                self.wait_status(job, started, self.operation_timeout)
-                self.store.finish(job["id"], self.worker_id, succeeded=True)
+                state = self.wait_status(job, started, self.operation_timeout)
+                self.applied(job, state)
             else:
-                fields = {}
-                if payload.get("playback_id"):
-                    fields["playback_id"] = payload["playback_id"]
-                else:
-                    fields["playback_id"] = self.runtime.status(job["bot_id"]).get("playback_id")
-                self.runtime.command(job["bot_id"], job["command"], job["id"], **fields)
+                state = self.runtime.status(job["bot_id"])
+                captured = job["playback_id"]
+                if job["command"] == "stop" and state.get("playback_state") in {"idle", "stopped", "finished"}:
+                    if state.get("playback_state") != "finished":
+                        self.release_media(job["bot_id"])
+                    if captured != state.get("playback_id") and self.store.playback_not_started(captured):
+                        state.update(playback_id=captured, playback_state="stopped", position_seconds=0)
+                    self.applied(job, state, no_op=True)
+                    return True
+                if captured != state.get("playback_id") or captured is None:
+                    raise RuntimeErrorCode("PLAYBACK_ID_MISMATCH")
+                expected = {"pause": "paused", "resume": "playing", "stop": "stopped"}[job["command"]]
+                if state.get("playback_state") == expected:
+                    self.applied(job, state, no_op=True)
+                    return True
+                fields = {"playback_id": captured}
+                try:
+                    self.runtime.command(job["bot_id"], job["command"], job["id"], **fields)
+                except TimeoutError:
+                    pass  # Reconcile the same attempt; never repeat the command blindly.
+                state = self.wait_status(job, lambda state: state.get("playback_id") == captured
+                                         and state.get("playback_state") == expected, self.operation_timeout)
                 if job["command"] == "stop":
                     self.release_media(job["bot_id"])
-                self.store.finish(job["id"], self.worker_id, succeeded=True)
+                    self.store.snapshot(job["bot_id"], state)
+                self.applied(job, state)
         except Exception as error:
             known = isinstance(error, (PayloadError, RuntimeErrorCode, ControlError, StoreError, MediaError, SecretError))
             code = str(error) if known else "WORKER_OPERATION_FAILED"
+            requested = self.store.cancellation_reason(job["id"])
+            if requested:
+                code = requested
+            if (isinstance(error, TimeoutError) or code == "OPERATION_TIMEOUT" or
+                (isinstance(error, ControlError) and code.startswith("IPC_"))) and job["command"] not in {"join", "leave"}:
+                self.store.mark_reconciling(job["bot_id"])
             # Never persist exception text with paths, URLs or secrets.
             if not code or any(character not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ_" for character in code) or len(code) > 80:
                 code = "WORKER_OPERATION_FAILED"
@@ -172,7 +211,8 @@ class Agent:
                 except Exception:
                     pass  # Preserve the pin until confirmed stop/leave; never guess decoder lifetime.
             self.store.finish(job["id"], self.worker_id, succeeded=False, error=code,
-                              session_state="failed" if terminal else None, cleanup_confirmed=cleanup)
+                              session_state=("leaving" if requested else "failed") if terminal else None,
+                              cleanup_confirmed=cleanup and not requested, cancelled=bool(requested))
         return True
 
     def end_supervised(self, session, code):
@@ -191,7 +231,7 @@ class Agent:
     def supervise(self):
         """Run between jobs on the SDK-owning thread; heartbeat has its own thread."""
         for session in self.store.reserved_sessions():
-            if session["state"] == "accepted":
+            if session["state"] in {"accepted", "leaving"}:
                 continue
             bot = session["id"]
             if session["deadline"] is not None and time.time() >= session["deadline"]:

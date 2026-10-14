@@ -3,7 +3,7 @@ import json
 from types import SimpleNamespace
 import unittest
 import google_crc32c
-from app.secrets import SecretProvider, SecretError
+from app.secrets import SecretProvider, SecretReader, SecretError
 
 
 SDK = "projects/test-project/secrets/zoom-sdk/versions/1"
@@ -60,3 +60,11 @@ class SecretTests(unittest.TestCase):
         self.client.data[SDK] = b'{"clientId":"ok","clientSecret":""}'
         with self.assertRaisesRegex(SecretError, "INVALID_SDK_SECRET"):
             self.provider.credentials()
+
+    def test_private_token_reader_does_not_request_sdk_or_key(self):
+        token_version = "projects/test-project/secrets/agent-token/versions/1"
+        value = base64.b64encode(bytes(range(32)))
+        client = FakeClient({token_version: value})
+        reader = SecretReader(client)
+        self.assertEqual(reader.token(token_version), value.decode())
+        self.assertEqual([call[0]["name"] for call in client.calls], [token_version])

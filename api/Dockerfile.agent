@@ -2,7 +2,7 @@ FROM zoom-msdk:7.1.5
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends python3-pip && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/agent
-COPY requirements-agent.txt .
+COPY requirements-agent.txt requirements-http.txt ./
 RUN python3 -m pip install --no-cache-dir -r requirements-agent.txt
 COPY app/ ./app/
 COPY tools/ ./tools/

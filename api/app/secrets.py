@@ -9,14 +9,15 @@ class SecretError(RuntimeError):
     pass
 
 
-class SecretProvider:
-    def __init__(self, credentials_version, master_key_version, client=None):
-        for name in (credentials_version, master_key_version):
-            # Pin versions: silently rotating the encryption key loses durable payloads.
-            if not isinstance(name, str) or not re.fullmatch(
-                r"projects/[a-zA-Z0-9_-]+/secrets/[a-zA-Z0-9_-]+/versions/[1-9][0-9]*", name
-            ):
-                raise SecretError("INVALID_SECRET_VERSION")
+def validate_version(name):
+    if not isinstance(name, str) or not re.fullmatch(
+        r"projects/[a-zA-Z0-9_-]+/secrets/[a-zA-Z0-9_-]+/versions/[1-9][0-9]*", name
+    ):
+        raise SecretError("INVALID_SECRET_VERSION")
+
+
+class SecretReader:
+    def __init__(self, client=None):
         if client is None:
             from google.cloud import secretmanager
             try:
@@ -24,10 +25,9 @@ class SecretProvider:
             except Exception:
                 raise SecretError("SECRET_AUTHENTICATION_FAILED") from None
         self.client = client
-        self.credentials_version = credentials_version
-        self.master_key_version = master_key_version
 
     def read(self, name):
+        validate_version(name)
         try:
             response = self.client.access_secret_version(request={"name": name}, timeout=10, retry=None)
             payload = response.payload
@@ -41,6 +41,27 @@ class SecretProvider:
             raise
         except Exception:
             raise SecretError("SECRET_ACCESS_FAILED") from None
+
+    def token(self, name):
+        try:
+            value = self.read(name)
+            if len(base64.b64decode(value, validate=True)) != 32:
+                raise ValueError()
+            return value.decode("ascii")
+        except SecretError:
+            raise
+        except (ValueError, UnicodeError):
+            raise SecretError("INVALID_AGENT_TOKEN") from None
+
+
+class SecretProvider(SecretReader):
+    def __init__(self, credentials_version, master_key_version, client=None):
+        # Pin versions: silently rotating the encryption key loses durable payloads.
+        validate_version(credentials_version)
+        validate_version(master_key_version)
+        super().__init__(client)
+        self.credentials_version = credentials_version
+        self.master_key_version = master_key_version
 
     def credentials(self):
         try:

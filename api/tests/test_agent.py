@@ -121,8 +121,8 @@ class AgentTests(unittest.TestCase):
     def test_stale_control_does_not_apply_to_new_playback(self):
         bot = self.join()
         self.control(bot, "play", {"media": {"type": "image", "url": "https://storage.test/image"}})
-        result = self.control(bot, "pause", {"playback_id": "old-attempt"})
-        self.assertEqual(result["error"], "PLAYBACK_ID_MISMATCH")
+        with self.assertRaisesRegex(StoreError, "PLAYBACK_ID_MISMATCH"):
+            self.control(bot, "pause", {"playback_id": "old-attempt"})
         self.assertEqual(self.runtime.state["playback_state"], "playing")
 
     def test_private_exception_is_not_persisted(self):
@@ -159,10 +159,9 @@ class AgentTests(unittest.TestCase):
         self.agent.media_resolver = lambda media: resource
         bot = self.join()
         self.control(bot, "play", {"media": {"type": "video", "url": "https://storage.test/file"}})
-        other, _ = self.agent.submit_control("owner", bot, "play", "another-play-key-01", {
-            "media": {"type": "video", "url": "https://storage.test/another"}})
-        self.agent.run_once()
-        self.assertEqual(self.store.operation(other["operation_id"], "owner")["error"], "PLAYBACK_ALREADY_ACTIVE")
+        with self.assertRaisesRegex(StoreError, "PLAYBACK_ALREADY_ACTIVE"):
+            self.agent.submit_control("owner", bot, "play", "another-play-key-01", {
+                "media": {"type": "video", "url": "https://storage.test/another"}})
         self.assertFalse(resource.released)
         self.assertNotIn("stop", self.runtime.calls)
         self.control(bot, "stop", {})

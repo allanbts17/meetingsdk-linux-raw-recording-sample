@@ -147,7 +147,8 @@ def probe_media(path, media):
         subprocess.run(decode, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=True)
         return {"suffix": suffix, "duration_seconds": duration, "video_codec": video.get("codec_name") if kind != "audio" else None,
                 "audio_codec": audio.get("codec_name") if needs_audio else None,
-                "width": width if kind != "audio" else None, "height": height if kind != "audio" else None}
+                "width": width if kind != "audio" else None, "height": height if kind != "audio" else None,
+                "fps": fps if kind == "video" else None}
     except MediaError:
         raise
     except subprocess.TimeoutExpired:

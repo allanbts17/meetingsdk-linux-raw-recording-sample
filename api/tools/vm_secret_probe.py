@@ -20,7 +20,7 @@ def main():
             headers={"Metadata-Flavor": "Google"})
         with urllib.request.urlopen(request, timeout=10) as response:
             token = json.load(response)["access_token"]
-        for secret in ("zoom-bot-sdk", "zoom-bot-master-key"):
+        for secret in ("zoom-bot-sdk", "zoom-bot-master-key", "zoom-bot-agent-token"):
             request = urllib.request.Request(
                 f"https://secretmanager.googleapis.com/v1/projects/zoom-app-dev/secrets/{secret}/versions/1:access",
                 headers={"Authorization": "Bearer " + token})

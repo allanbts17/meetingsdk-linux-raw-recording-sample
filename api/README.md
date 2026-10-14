@@ -106,7 +106,7 @@ El script scripts/provision-agent-secrets.ps1 es de bootstrap: lee la configurac
 
 ## Servicio persistente y recuperación
 
-El CMD de la imagen inicia PulseAudio y `tools.agent_service`. El agente espera órdenes en SQLite; no entra a ninguna reunión al arrancar. La interfaz HTTP privada se implementará en el siguiente paso. `config/agent.env.example` contiene únicamente nombres de recursos y ruta de estado, sin valores privados.
+El CMD de la imagen inicia PulseAudio y Uvicorn con `app.private_http:app_factory`. El lifespan crea AgentService y ejecuta el worker/heartbeat en threads separados del servidor HTTP. El agente espera órdenes en SQLite; no entra a ninguna reunión al arrancar. `config/agent.env.example` contiene únicamente nombres de recursos, propietario y ruta de estado, sin valores privados. `tools.agent_service` sigue disponible como entrada de diagnóstico sin HTTP.
 
 El volumen `/state` contiene state.db, WAL, configuración pública de la versión de clave, caché y directorios privados de ejecución. Debe conservarse entre reinicios; no ejecutar dos agentes con distintos volúmenes contra la misma capacidad. Un flock exclusivo impide dos propietarios del mismo estado. La versión de clave registrada debe coincidir al reiniciar; un cambio falla antes de ejecutar trabajos.
 
@@ -126,6 +126,36 @@ Prueba de acceso metadata/REST sin dependencias, exclusiva de GCE:
 python3 -m tools.vm_secret_probe
 ```
 
-Pendientes: HTTP privado/API Cloud Run, cancelación prioritaria stop/leave, despliegue y supervisión al arrancar la VM. La identidad actual es la cuenta Compute predeterminada; sustituirla por una cuenta dedicada al configurar infraestructura, sin retirar permisos preexistentes de la VM.
+Pendientes: despliegue, prueba HTTP con SDK real desde GCE y supervisión al arrancar la VM. La identidad actual es la cuenta Compute predeterminada; sustituirla por una cuenta dedicada al configurar infraestructura, sin retirar permisos preexistentes de la VM.
 
 La recuperación registra boot ID y namespace PID. Si un contenedor nuevo conserva directorios de ejecución de otro namespace durante el mismo arranque de la VM, falla con RUNTIME_NAMESPACE_CHANGED y conserva la reserva: sus procesos no serían visibles desde el nuevo contenedor. El despliegue debe comprobar desde el host que el contenedor anterior y sus procesos terminaron antes de limpiar esos directorios. Esa comprobación del host se implementará con la supervisión de GCE. Tras un reinicio completo de la VM, los procesos del boot anterior no pueden seguir vivos y se reconcilian automáticamente.
+
+## API HTTP y cancelaciones
+
+`app.public_http` es el proxy stateless para Cloud Run; `app.private_http` es el servidor del agente. Ambos exponen POST/GET /v1/bots, GET/DELETE /v1/bots/{bot_id}, play/pause/resume/stop, operations, events, capacity y health, además de docs/OpenAPI. El contrato detallado está en docs/api-propuesta.md.
+
+La API pública usa IAM de Cloud Run: desplegar como el nuevo servicio zoom-bot-api, autenticado, y conceder Invoker al consumidor confirmado 722146628233-compute@developer.gserviceaccount.com (servicio actual api). No reemplazar ese servicio api. El factory exige K_SERVICE y configuración de propietario; las pruebas del proxy en memoria no prueban IAM. No publicar la imagen pública como un servidor sin IAM: Google valida las invocaciones delante del contenedor. No se interpreta el token cuya firma Google puede retirar, ni se acepta un propietario suministrado por el cliente.
+
+Se creó zoom-bot-api@zoom-app-dev.iam.gserviceaccount.com para la nueva API y zoom-bot-agent-token versión 1 como credencial interna de 32 bytes aleatorios/Base64. La nueva identidad tiene acceso por secreto únicamente a esa credencial. La identidad actual de GCE también puede leerla. El bootstrap `scripts/provision-agent-secrets.ps1 -AgentTokenOnly` no modifica SDK ni clave maestra y rechaza un secreto existente. Los nombres son públicos; sus valores solo se leen con ADC. `config/api.env.example` contiene la configuración pública; asignar la IP privada al desplegar.
+
+El agente exige bearer constante comparado con hmac.compare_digest y X-Bot-Owner igual al propietario configurado. La API añade ambas cabeceras; nunca reenvía la autorización pública al agente. Firewall/Direct VPC y los permisos Invoker del servicio nuevo se configuran en el siguiente paso. El factory privado de prueba recibe un agente/token sintéticos; el factory productivo usa Secret Manager.
+
+Las órdenes se registran antes del 202. Play obtiene un playback_id estable al aceptar, antes de descargar. Pause/resume/stop capturan el intento actual dentro de la transacción; un ID antiguo se rechaza antes de cancelar/aplicar nada. La URL/password solo se guardan cifrados en la cola y se purgan al reclamar/finalizar/cancelar. El historial conserva número/nombre y metadata saneada, sin URL completa ni credenciales.
+
+Leave tiene prioridad y cancela trabajos en cola o pide cancelación al trabajo activo, incluida entrada/admisión/descarga. Stop puede cancelar un play pendiente conservando la reunión. Una segunda salida en curso recupera la misma operación; una sesión liberada admite DELETE no-op 200. El claim activo se conserva hasta que el worker termina/limpia, por lo que nunca se ejecutan dos comandos SDK simultáneamente. Cancelación durante lecturas de red espera los timeouts ya acotados; no implica cierre instantáneo. Un ACK ya confirmado conserva succeeded aunque una salida/stop posterior haya pedido cancelación.
+
+Pause/resume comprueban estado aplicado; un timeout IPC se reconcilia sin reenviar el comando. Si no se confirma, se bloquean nuevas órdenes hasta obtener estado, permitiendo salida. El proxy devuelve 503 ante timeout/desconexión del agente y no inventa 202 ni repite peticiones; el consumidor reintenta con la misma Idempotency-Key y recupera los IDs originales. SQLite permanece en GCE aunque escale/reinicie la API.
+
+Validación Pydantic estricta por tipo, campos desconocidos rechazados, allowlist Storage, JSON/cuerpo limitado a 64 KiB, UUIDs, claves 16–128 caracteres alfanuméricos/guion/guion bajo, Cache-Control no-store y X-Request-ID. Errores no incluyen valores recibidos ni excepciones privadas; logs de acceso Uvicorn desactivados. Rate limit persistente por propietario: 60 peticiones/minuto, 10 mutaciones/minuto, hasta 5 mutaciones en un segundo. Esta ráfaga usa ventana móvil de un segundo.
+
+Consulta de listas con cursor de fecha+ID ligado al propietario/filtro; eventos ordenados con posición/IDs y transiciones agregadas. Valores no expuestos por IPC, incluidos permisos/capacidades de salida, permanecen null. La retención automática y las políticas del anfitrión/red todavía requieren implementación/pruebas.
+
+Construcción de la imagen independiente para Cloud Run, sin SDK ni medios y con usuario no privilegiado:
+
+```powershell
+docker build -t zoom-api:dev -f api/Dockerfile api
+```
+
+La imagen del agente conserva SDK/FFmpeg y se construye con Dockerfile.agent. Usar un solo worker Uvicorn en el agente (flock rechaza propietarios duplicados). Reservar al menos 75 segundos de gracia al detener su contenedor para terminar transferencias y limpieza nativa. La imagen del proxy puede tener múltiples instancias; todas consultan el mismo agente.
+
+Referencias: [IAM entre servicios de Cloud Run y cabeceras de ID token](https://docs.cloud.google.com/run/docs/authenticating/service-to-service), [lifespan FastAPI](https://fastapi.tiangolo.com/advanced/events/).

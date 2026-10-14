@@ -148,7 +148,8 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar acceso al enlace público de Storage desde la VM.
 - [x] Confirmar API en Cloud Run y agente/worker en GCE, sin dominio propio.
 - [x] Elaborar contrato de endpoints para entrada independiente y video/audio/imagen.
-- [ ] Identificar cuenta de servicio del backend y cerrar límites/tiempos propuestos en api-propuesta.md.
+- [x] Identificar servicio consumidor y su cuenta de servicio real en Cloud Run.
+- [ ] Cerrar límites/tiempos propuestos mediante pruebas de despliegue y carga.
 - [x] Confirmar backend consumidor en Cloud Run/GCP y seleccionar IAM Invoker con ID token.
 - [ ] Preparar archivo de prueba 1080p/30 FPS para dimensionar la VM.
 
@@ -186,16 +187,20 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Supervisar procesos, heartbeat, salida y reinicio; reconciliar sin reentrar automáticamente.
 - [x] Verificar limpieza de procesos huérfanos, bloqueo de una segunda instancia, heartbeat durante trabajos y conservación de capacidad ante limpieza incierta.
 - [x] Aplicar duración máxima desde la aceptación, timeout de reconexión y snapshots sin secretos.
-- [ ] Implementar prioridad y cancelación de operaciones para stop/leave durante descarga o entrada.
-- [ ] Probar idempotencia, fallos de descarga, cancelaciones, reinicios y limpieza de capacidad.
+- [x] Implementar prioridad y cancelación de operaciones para stop/leave durante descarga o entrada.
+- [x] Probar idempotencia, fallos de descarga, cancelaciones, reinicios y limpieza de capacidad.
 
 ## 13. API en Cloud Run
 
-- [ ] Implementar FastAPI/Pydantic, endpoints de api-propuesta.md y OpenAPI autenticado.
-- [ ] Mantener API sin estado local duradero; consultar y entregar órdenes al agente privado.
-- [ ] Propagar idempotencia y persistir en el agente antes de devolver 202; reconciliar timeouts sin duplicar órdenes.
+- [x] Implementar FastAPI/Pydantic, endpoints de api-propuesta.md y esquema OpenAPI con autenticación declarada.
+- [x] Mantener API sin estado local duradero; consultar y entregar órdenes al agente privado.
+- [x] Propagar idempotencia y persistir en el agente antes de devolver 202; no duplicar órdenes ante timeouts.
 - [ ] Implementar autenticación acordada, validación, errores, correlación y logs sin secretos.
-- [ ] Verificar comportamiento al escalar y reiniciar instancias de API mientras el bot sigue conectado.
+- [x] Implementar credencial privada independiente, propietario fijo, validación estricta, errores saneados, correlación y límites persistentes.
+- [x] Verificar mediante pruebas HTTP que dos instancias de API recuperan la misma operación y conservan el estado del agente.
+- [ ] Verificar IAM/Invokers y documentación protegida en la URL real de Cloud Run.
+- [ ] Verificar comportamiento al escalar y reiniciar instancias desplegadas mientras el bot real sigue conectado.
+- [ ] Completar retención automática de historial de 30 días y pruebas de políticas del anfitrión/red pendientes.
 
 ## 14. Infraestructura y despliegue
 

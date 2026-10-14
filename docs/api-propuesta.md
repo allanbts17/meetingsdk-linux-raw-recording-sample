@@ -1,6 +1,10 @@
 # Propuesta de API del bot de Zoom
 
-Estado: arquitectura confirmada el 2026-10-13; HTTP y agente persistente pendientes. Código Python bajo `/api`; cliente IPC implementado. FastAPI en Cloud Run y agente/worker en `zoom-bot-vm`, caché temporal en VM, una reunión simultánea y videos de hasta 1080p. Backend consumidor en Cloud Run/GCP: autenticación IAM. Los límites del contrato siguen como propuesta. Este contrato complementa [despliegue-propuesta.md](despliegue-propuesta.md).
+Estado: arquitectura confirmada el 2026-10-13; agente persistente y endpoints HTTP implementados con pruebas locales. Despliegue y validación real por HTTP pendientes. Código Python bajo `/api`; IPC implementado. FastAPI en Cloud Run y agente/worker en `zoom-bot-vm`, caché temporal en VM, una reunión simultánea y videos de hasta 1080p. Consumidor confirmado: servicio Cloud Run `api`, cuenta `722146628233-compute@developer.gserviceaccount.com`. Los límites se aplican como defaults iniciales y requieren prueba de carga. Este contrato complementa [despliegue-propuesta.md](despliegue-propuesta.md).
+
+Implementación actual: Cloud Run delega la autenticación a IAM y usa un propietario fijo para ese backend; no deriva identidad de cabeceras del cliente. Proxy sin SQLite ni SDK. Agente HTTP privado con bearer distinto en Secret Manager, propietario esperado y SQLite persistente. Los dos servidores comparten rutas/modelos; el puerto del agente no debe publicarse en Internet. Su despliegue y firewall están pendientes.
+
+Campos todavía no medidos/expuestos por IPC, incluidos permisos del anfitrión y capacidades negociadas, se devuelven como null. La retención automática de 30 días, la pausa por causas externas y la prueba de infraestructura/red siguen pendientes. Stop idle/finished se verifica como trabajo y puede responder 202 antes de completar no-op; pause/resume ya aplicados y DELETE con recursos liberados tienen no-op 200 persistido. Los eventos actuales incluyen transiciones agregadas y estados de operación con playback_id cuando está disponible.
 
 ## 1. Alcance y componentes
 
