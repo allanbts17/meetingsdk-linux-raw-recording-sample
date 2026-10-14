@@ -199,7 +199,8 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Implementar credencial privada independiente, propietario fijo, validación estricta, errores saneados, correlación y límites persistentes.
 - [x] Verificar mediante pruebas HTTP que dos instancias de API recuperan la misma operación y conservan el estado del agente.
 - [x] Verificar IAM/Invokers y documentación protegida en la URL real de Cloud Run.
-- [ ] Verificar comportamiento al escalar y reiniciar instancias desplegadas mientras el bot real sigue conectado.
+- [x] Verificar renovación de revisión de Cloud Run mientras el bot real sigue conectado, conservando sesión e idempotencia.
+- [ ] Verificar comportamiento con varias instancias desplegadas si se amplía el máximo configurado de una instancia.
 - [x] Completar retención automática de historial de 30 días sin borrar sesiones activas, reservas inciertas ni idempotencia vigente.
 - [ ] Completar pruebas de políticas del anfitrión/red pendientes.
 
@@ -210,7 +211,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Configurar Direct VPC egress en us-central1 y acceso al agente por IP interna de la VM.
 - [x] Limitar firewall del agente al origen de Cloud Run y autenticar la comunicación interna.
 - [x] Desplegar agente/worker con volumen persistente y supervisión al arrancar la VM.
-- [ ] Confirmar desde el host la finalización del contenedor anterior antes de reconciliar directorios de otro namespace PID.
+- [x] Confirmar desde el host la finalización del contenedor anterior antes de reconciliar directorios de otro namespace PID.
 - [x] Implementar scripts y unidades systemd para comprobar contenedor/namespace anteriores, recuperar y supervisar heartbeat.
 - [x] Desplegar API Cloud Run con URL HTTPS run.app, autenticación y escalado configurados.
 - [ ] Configurar logs, métricas, alertas de fallos y control de costos.
@@ -221,7 +222,9 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Probar por API otro medio: audio independiente e imagen.
 - [ ] Verificar EOF/stop sin salida de reunión y que DELETE libera procesos y capacidad.
 - [ ] Probar video, audio e imagen; comprobar rechazos, operaciones/eventos e idempotencia.
-- [ ] Medir al menos diez minutos de entrada 1080p/30 FPS: CPU/RAM, cuadros tardíos, errores y sincronía.
+- [ ] Medir al menos diez minutos de entrada 1080p/30 FPS cuando esté disponible el archivo de prueba: CPU/RAM, cuadros tardíos, errores y sincronía.
 - [ ] Comprobar resolución realmente negociada por Zoom y dimensionar CPU según resultados.
-- [ ] Verificar reinicios, conectividad privada, autenticación y ausencia de secretos en logs/imágenes.
+- [x] Verificar recuperación ante cierre abrupto del contenedor con SDK conectado, limpieza y ausencia de reentrada automática.
+- [x] Verificar rechazo de segunda reunión e idempotencia después de reiniciar agente y renovar API.
+- [ ] Verificar reinicio de VM, conectividad privada, autenticación y ausencia de secretos en logs/imágenes.
 - [ ] Documentar uso, despliegue, recuperación y actualización; marcar entrega completa tras validar con otro participante.

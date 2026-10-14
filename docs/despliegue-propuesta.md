@@ -1,6 +1,6 @@
 # Propuesta de despliegue y API — arquitectura base confirmada
 
-Este documento registra la inspección y la arquitectura base confirmada por el usuario: API FastAPI en Cloud Run y agente/worker en la VM, caché temporal y validación con recursos actuales. Fecha: 2026-10-13. La especificación detallada está en [api-propuesta.md](api-propuesta.md). El plan incorpora esta arquitectura confirmada; aún no se ha desplegado la aplicación.
+Este documento conserva la inspección inicial del 2026-10-13 y la arquitectura confirmada: API FastAPI en Cloud Run y agente/worker en la VM. Desde el 2026-10-14 ambos componentes están desplegados; video, audio e imagen fueron comprobados por API con otro participante. El estado actual y las pruebas están en [seguimiento.md](seguimiento.md), y las referencias de imágenes en [deploy/images.json](../deploy/images.json). La especificación está en [api-propuesta.md](api-propuesta.md).
 
 ## Requisitos confirmados
 

@@ -2,6 +2,8 @@
 
 Proyecto zoom-app-dev, VM zoom-bot-vm en us-central1-a, API nueva zoom-bot-api en us-central1. El backend existente api se conserva. Parámetros públicos en gcp.json; nombres de secretos y propietario en config/*.env.example. Nunca copiar credenciales a estos archivos.
 
+API desplegada: https://zoom-bot-api-722146628233.us-central1.run.app. Swagger en /docs y esquema en /openapi.json; ambos requieren IAM. El backend api puede obtener un ID token con esa URL base como audience y enviarlo mediante Authorization: Bearer. Añadir Idempotency-Key distinta por orden; si se pierde la respuesta, reintentar la misma orden con la misma clave. La identidad consumidora tiene roles/run.invoker, pero su llamada desde el backend aún requiere comprobación.
+
 La identidad de VM es zoom-bot-agent@zoom-app-dev.iam.gserviceaccount.com: lectura por secreto de SDK, clave maestra y token privado, y Artifact Registry Reader solo en el repositorio zoom-bot. La API usa zoom-bot-api@zoom-app-dev.iam.gserviceaccount.com y solo lee el token privado. IAM Invoker corresponde a la identidad Compute actual del backend api.
 
 Red: default, subred de salida zoom-bot-run 10.42.0.0/26; VM 10.128.0.2. Firewall del tag zoom-bot-agent permite TCP8080 desde esa subred con prioridad900 y lo deniega a otros orígenes con prioridad901. La API usa private-ranges-only: no requiere conector VPC ni Cloud NAT para esa comunicación. Verificar IAM autenticado, ausencia de allUsers y la regla efectiva antes de entrega.
