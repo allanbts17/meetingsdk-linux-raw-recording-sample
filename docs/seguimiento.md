@@ -328,3 +328,11 @@ El fixture de enlace público está en config/media-test.json.example; diagnóst
 - Añadida prueba nativa de rechazo sostenido de sendVideoFrame/send: ambas fuentes reportan HasFailed, cero cuadros/bloques aceptados y no IsCompleted; aprobada con clip sintético de 3 s. Los mensajes FFmpeg Broken pipe son esperados porque se termina el decoder tras el rechazo persistente.
 - Añadida prueba de Store para transición playing a failed con posición, evento único incluso al repetir snapshot, sin campos privados y sin cerrar la reunión. Ocho pruebas Store aprobadas. Se conserva MEDIA_SEND_FAILED como código saneado del agente y los detalles numéricos SDK en diagnóstico privado.
 - Pendientes IPC y prueba de pistas/eventos del paso 11 completados con evidencia acumulada y pruebas de rechazo. No hay cambios de producción ni despliegue nuevo.
+
+## Límites v1 y revisión de pendientes (2026-10-14)
+
+- Carga HTTP real acotada: 65 GET capacity, concurrencia 4, 60 respuestas 200 y 5 respuestas 429, p95 de éxitos 0.4285 s y máximo 0.4908 s. No se iniciaron reuniones ni mutaciones. Valida umbral de consultas, no capacidad de video ni escalado masivo.
+- Suites pertinentes aprobadas: HTTP 15, medios 16, supervisión 15 y cancelación 6. Cubren ráfaga/mutaciones durables, tamaños/formatos/URLs, timeouts de transferencia, sesión y reconexión, cancelación/limpieza. Se mantienen límites actuales de v1; CPU/RAM para 1080p pendiente de benchmark.
+- Políticas de v1 verificadas con evidencia acumulada: auto-unmute cuando permitido, bloqueo de cámara impuesto por anfitrión respetado y recuperación de red sincronizada. No implica recuperación de cámara forzada ni todas las configuraciones posibles de Zoom; mejoras de cámara quedan en v2.
+- Corregida propuesta API que aún indicaba despliegue, firewall, retención e infraestructura pendientes; corregidos stop no-op asíncrono y frecuencia de sondeo para evitar agotar 60 consultas/minuto.
+- Varias instancias desplegadas: punto condicional no aplicable mientras Cloud Run conserve máximo una instancia. No se incrementa el despliegue para forzar una prueba fuera del alcance actual.

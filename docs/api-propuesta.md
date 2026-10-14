@@ -1,10 +1,10 @@
 # Propuesta de API del bot de Zoom
 
-Estado: arquitectura confirmada el 2026-10-13; agente persistente y endpoints HTTP implementados con pruebas locales. Despliegue y validación real por HTTP pendientes. Código Python bajo `/api`; IPC implementado. FastAPI en Cloud Run y agente/worker en `zoom-bot-vm`, caché temporal en VM, una reunión simultánea y videos de hasta 1080p. Consumidor confirmado: servicio Cloud Run `api`, cuenta `722146628233-compute@developer.gserviceaccount.com`. Los límites se aplican como defaults iniciales y requieren prueba de carga. Este contrato complementa [despliegue-propuesta.md](despliegue-propuesta.md).
+Estado al 2026-10-14: API FastAPI desplegada en Cloud Run y agente/SDK en `zoom-bot-vm`; video, audio e imagen comprobados por HTTP y otro participante. Una reunión simultánea; entrada de video hasta 1080p/30 FPS. Consumidor confirmado: servicio Cloud Run `api`, cuenta `722146628233-compute@developer.gserviceaccount.com`. Este contrato complementa [despliegue-propuesta.md](despliegue-propuesta.md).
 
-Implementación actual: Cloud Run delega la autenticación a IAM y usa un propietario fijo para ese backend; no deriva identidad de cabeceras del cliente. Proxy sin SQLite ni SDK. Agente HTTP privado con bearer distinto en Secret Manager, propietario esperado y SQLite persistente. Los dos servidores comparten rutas/modelos; el puerto del agente no debe publicarse en Internet. Su despliegue y firewall están pendientes.
+Cloud Run valida IAM y usa un propietario fijo. La API no conserva estado duradero; envía órdenes al agente privado autenticado con otra credencial en Secret Manager. SQLite está en la VM, y el firewall restringe el agente al origen privado de Cloud Run. Swagger protegido está disponible mediante el proxy descrito en [probar-api.md](probar-api.md).
 
-Campos todavía no medidos/expuestos por IPC, incluidos permisos del anfitrión y capacidades negociadas, se devuelven como null. La retención automática de 30 días, la pausa por causas externas y la prueba de infraestructura/red siguen pendientes. Stop idle/finished se verifica como trabajo y puede responder 202 antes de completar no-op; pause/resume ya aplicados y DELETE con recursos liberados tienen no-op 200 persistido. Los eventos actuales incluyen transiciones agregadas y estados de operación con playback_id cuando está disponible.
+Retención de 30 días, pausa por causas externas y recuperación de red implementadas y comprobadas. Los campos de permisos/capacidades todavía no expuestos siguen siendo null. El audio puede recuperarse automáticamente si Zoom permite auto-unmute; detener cámara desde el anfitrión pausa ambas pistas y puede impedir reactivarla. La mejora de cámara independiente queda registrada para v2 en seguimiento. Stop idle/finished puede devolver 202 y completar después con no_op=true; no asumir HTTP 200 inmediato para todo no-op. Los eventos incluyen transiciones agregadas e IDs de reproducción; se paginan por sequence.
 
 ## 1. Alcance y componentes
 
@@ -50,7 +50,7 @@ Todas las rutas funcionales y documentación requieren autenticación. `/health/
 | POST | `/v1/bots/{bot_id}/play` | 202 | Iniciar video, audio o imagen en un bot ya conectado. |
 | POST | `/v1/bots/{bot_id}/pause` | 202; 200 si ya aplicada | Pausar conjuntamente ambas pistas. |
 | POST | `/v1/bots/{bot_id}/resume` | 202; 200 si ya aplicada | Reanudar una pausa manual. |
-| POST | `/v1/bots/{bot_id}/stop` | 202; 200 si ya aplicada | Detener definitivamente el clip, manteniendo la reunión. |
+| POST | `/v1/bots/{bot_id}/stop` | 202; consultar operación/no_op | Detener definitivamente el clip, manteniendo la reunión. |
 | DELETE | `/v1/bots/{bot_id}` | 202; 200 si ya liberada | Cancelar preparación o salir de la reunión y liberar recursos. |
 | GET | `/v1/operations/{operation_id}` | 200 | Consultar ejecución de una solicitud aceptada. |
 | GET | `/v1/bots/{bot_id}/events` | 200 | Leer eventos ordenados del bot, con cursor. |
@@ -60,7 +60,7 @@ Todas las rutas funcionales y documentación requieren autenticación. `/health/
 | GET | `/openapi.json` | 200 | Contrato OpenAPI autenticado. |
 | GET | `/docs` | 200 | Swagger UI autenticada. |
 
-Sondeo inicial recomendado: operación/estado cada segundo mientras cambia; cada 5 segundos en estados estables. Los eventos son consultas HTTP normales; SSE/WebSocket y webhooks quedan para una ampliación posterior.
+Sondeo recomendado: alternar operación/estado cada 2–3 segundos mientras cambia; cada 5 segundos en estados estables. El límite de 60 consultas/minuto se comparte entre todas las rutas del propietario. Los eventos son consultas HTTP normales; SSE/WebSocket y webhooks quedan para una ampliación posterior.
 
 ## 4. Crear una sesión: POST /v1/bots
 
@@ -256,7 +256,7 @@ Ejemplos: `active + idle`, `active + buffering`, `active + paused`, `active + st
 
 `pause_reasons` distingue `user`, `host_audio_muted`, `host_video_disabled`, `network_reconnecting` y `sdk_not_ready`. La política propuesta para eventos externos es pausar ambas pistas si alguna pista requerida deja de estar disponible, conservar la posición y no contrarrestar decisiones del anfitrión. Al recuperarse la disponibilidad, retirar ese motivo; reanudar solo si no quedan otros motivos. Una pausa manual permanece hasta `resume`.
 
-Esta política de anfitrión/red requiere implementación adicional: los controles actuales ya funcionan, pero esos escenarios aún están pendientes en el plan. Si termina la reunión, marcar `ended` y liberar; si vence un timeout de reconexión o se agota recuperación, marcar `failed` y limpiar.
+La política actual se verificó con mute permitido, cámara detenida por el anfitrión y un corte de red de 30 segundos; las limitaciones de cámara están registradas en seguimiento. Si termina la reunión, marcar `ended` y liberar; si vence un timeout de reconexión o se agota recuperación, marcar `failed` y limpiar.
 
 ## 7. Pausar: POST /v1/bots/{bot_id}/pause
 
@@ -303,7 +303,7 @@ Cuerpo opcional con `playback_id`; mismo esquema de control e idempotencia.
 - Disponible en bot `active` o `reconnecting`, con playback buffering/playing/paused; si está buffering, cancela descarga/preparación del intento y libera sus temporales.
 - Detención definitiva: bloquea nuevos envíos, libera ambos decodificadores y conserva al participante conectado si la reunión continúa.
 - No modifica ni anula restricciones del anfitrión. La última imagen puede permanecer visible.
-- Si ya está idle/stopped: 200 no-op. Si ya finished: 200 no-op sin convertir finished en stopped. Un playback failed admite limpieza si queda alguna tarea o recurso pendiente.
+- Si ya está idle/stopped/finished, stop puede responder 202 y completar la operación con no_op=true; finished se conserva sin convertirlo en stopped. Un playback failed admite limpieza si queda alguna tarea o recurso pendiente.
 - En preparing/joining/waiting_room, devolver 409 `INVALID_STATE`; para cancelar la sesión usar DELETE.
 - Una operación stop completada implica que no quedan decodificadores/emisiones del clip, no solo que se escribió una orden a la FIFO.
 
@@ -445,20 +445,20 @@ Los errores de validación indican nombres de campos y mensajes; no incluir el v
 
 ## 15. Descarga, límites y secretos
 
-Valores iniciales propuestos, configurables en despliegue y sujetos a prueba 1080p:
+Límites operativos de v1 comprobados mediante pruebas de validación, tiempos y carga HTTP acotada. La capacidad de reproducción 1080p prolongada sigue pendiente:
 
-| Límite | Propuesta |
+| Límite | Valor actual |
 |---|---|
 | Fuente permitida | `https://storage.googleapis.com/zoom-app-dev.firebasestorage.app/...` |
 | Archivo video | MP4, H.264 y audio AAC cuando audio esté habilitado; puede ampliarse tras pruebas. |
 | Archivo audio | MP3, WAV PCM o M4A/AAC, validado por decodificación y convertido a PCM del SDK. |
 | Archivo imagen | PNG o JPEG estático; validar dimensiones/decodificación. SVG, GIF animado y otros formatos quedan fuera de v1. |
 | Resolución de entrada | Video: hasta 1920×1080 en orientación de reproducción. Imagen: hasta 4096 por lado y 16 megapíxeles; se adapta al tamaño de cámara negociado. Considerar rotación al validar. |
-| FPS de entrada | Hasta 30 inicialmente; confirmar si se necesitan 60 FPS. |
+| FPS de entrada | Hasta 30 FPS; 60 FPS fuera de v1. |
 | Tamaño | 1 GiB por video/audio; 10 MiB por imagen. |
 | Duración | Hasta 3600 s, además del límite de sesión elegido. |
 | Descarga | Conexión 10 s; sin recibir datos 30 s; total 300 s. |
-| Reconexión Zoom | Máximo propuesto 120 s por incidente. |
+| Reconexión Zoom | Máximo 120 s por incidente. |
 | ACK de controles | 5 s; salida normal 20 s antes de limpieza forzada. |
 | Capacidad de caché | Máximo 2 GiB; eliminar temporales al terminar/cancelar/fallar. |
 | Reserva de disco | Mantener al menos 5 GiB libres antes/durante descarga. |
@@ -513,7 +513,7 @@ Reinicio de API: consultar al agente; SQLite permanece en la VM y no se monta en
 - Tests incluyen API, agente, IPC, reinicios, concurrencia, idempotencia y validación de URL.
 - Prueba real 1080p/30 FPS de al menos diez minutos en GCE, con métrica de cuadros tardíos y confirmación de sincronía.
 
-Confirmado: consumidor backend en Cloud Run/GCP, IAM Invoker y URL HTTPS run.app. Pendiente: cuenta de servicio del consumidor, defaults de tamaño/duración/FPS y comportamiento frente a eventos externos. Entrar y reproducir son operaciones separadas; finalizar un clip no termina la reunión. El plan ya incluye la arquitectura. Cliente IPC bajo /api implementado; endpoints HTTP, agente persistente y despliegue siguen pendientes.
+Confirmado: consumidor, cuenta de servicio, IAM Invoker, URL HTTPS run.app, despliegue y controles independientes. Pendiente: prueba prolongada 1080p/30 FPS y dimensionamiento derivado. Varias instancias desplegadas solo requieren validación adicional si se aumenta el máximo actual de una. El usuario configura su backend consumidor.
 
 ## Referencias de implementación
 

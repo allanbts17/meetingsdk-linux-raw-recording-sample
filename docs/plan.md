@@ -150,7 +150,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Confirmar API en Cloud Run y agente/worker en GCE, sin dominio propio.
 - [x] Elaborar contrato de endpoints para entrada independiente y video/audio/imagen.
 - [x] Identificar servicio consumidor y su cuenta de servicio real en Cloud Run.
-- [ ] Cerrar límites/tiempos propuestos mediante pruebas de despliegue y carga.
+- [x] Cerrar límites/tiempos propuestos mediante pruebas de despliegue y carga.
 - [x] Confirmar backend consumidor en Cloud Run/GCP y seleccionar IAM Invoker con ID token.
 - [ ] Preparar archivo de prueba 1080p/30 FPS para dimensionar la VM.
 
@@ -205,7 +205,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar renovación de revisión de Cloud Run mientras el bot real sigue conectado, conservando sesión e idempotencia.
 - [ ] Verificar comportamiento con varias instancias desplegadas si se amplía el máximo configurado de una instancia.
 - [x] Completar retención automática de historial de 30 días sin borrar sesiones activas, reservas inciertas ni idempotencia vigente.
-- [ ] Completar pruebas de políticas del anfitrión/red pendientes.
+- [x] Completar pruebas de políticas del anfitrión/red pendientes.
 
 ## 14. Infraestructura y despliegue
 
