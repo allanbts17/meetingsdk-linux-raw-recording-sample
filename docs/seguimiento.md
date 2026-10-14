@@ -302,3 +302,10 @@ El fixture de enlace público está en config/media-test.json.example; diagnóst
 - Agente e6b9d47e24ac publicado e instalado por digest sha256:a9fcf939a6263e8f4b3d0e744b946575bf4be849578380f3d8eb125b1f63a35b. Servicio activo; VideoBot-Camera-Diag conectado y API confirma reproducción playing del clip público. Prueba de detener cámara solicitada al usuario; resultado pendiente. VM se mantiene encendida. API Cloud Run sin cambios.
 
 - Prueba Camera-Diag: usuario confirma cámara apagada tras Detener video. SDK registró Self video status 2 (Video_Mute_ByHost), callback stop y posteriores estados OFF. Fuente virtual conservada (source initialized: 1), sin callback uninitialized; UnmuteVideo sigue devolviendo 2 (SDKERR_WRONG_USAGE). Se descarta desinicialización de fuente en esta prueba; no se confunde el resultado con SDKERR_NO_PERMISSION. Pendiente solicitud del anfitrión por Participantes > Más > Pedir que inicie el video y validación del callback Accept. Recuperación incondicional de cámara sigue sin completar.
+
+## Consideración para v2: cámara independiente del audio (2026-10-14)
+
+- El usuario decidió conservar por ahora el comportamiento actual y dejar esta mejora para v2; no se añade como tarea al plan vigente.
+- Comportamiento deseado en v2: al detener la cámara del bot desde Zoom, el audio y la posición de reproducción continúan. Al solicitar volver a iniciar el video, el bot acepta y muestra el punto actual sincronizado con el audio, sin reiniciar ni reanudar desde la posición antigua de la cámara.
+- Este criterio sustituye para v2 la idea de reactivar la cámara inmediatamente contra la acción del anfitrión: se respeta la cámara apagada hasta recibir la solicitud de inicio.
+- Investigar en v2 por qué el cliente Zoom no muestra el icono de cámara junto al bot como ocurre con Recall. La captura y los diagnósticos actuales no permiten atribuir esa diferencia al SDK Linux. Comportamiento actual: detener cámara pausa el reloj compartido y Zoom rechaza UnmuteVideo tras Video_Mute_ByHost; la fuente virtual permanece inicializada.
