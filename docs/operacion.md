@@ -30,9 +30,9 @@ sudo systemctl is-active zoom-bot-agent.service zoom-bot-watchdog.timer
 sudo docker ps --filter name=zoom-bot-agent
 ```
 
-## Al terminar
+## Apagar cuando lo decidas
 
-Si hay un bot conectado, usa DELETE /v1/bots/{bot_id} y consulta su operación hasta succeeded. Comprueba `resource_released: true` y plaza libre. Después:
+La instrucción vigente es mantener la VM encendida hasta que el usuario indique apagarla. Cerrar un bot no implica apagar la VM. Cuando decidas apagarla, si hay un bot conectado usa DELETE /v1/bots/{bot_id}, espera succeeded y comprueba `resource_released: true` y plaza libre. Solo entonces ejecuta:
 
 ```powershell
 & $gcloud compute instances stop zoom-bot-vm --project zoom-app-dev --zone us-central1-a
@@ -41,6 +41,6 @@ Si hay un bot conectado, usa DELETE /v1/bots/{bot_id} y consulta su operación h
 
 El estado final esperado es TERMINATED. Los discos conservan SQLite, caché e imágenes. Tras un fallo/reinicio el agente reconcilia las sesiones anteriores y no las vuelve a conectar automáticamente; consulta el estado actual antes de decidir una nueva entrada.
 
-Los logs Docker locales están limitados a tres archivos de 10 MiB. No se han configurado alertas por correo ni presupuesto: se dejaron fuera del alcance actual a petición del usuario. El benchmark 1080p y las políticas del anfitrión permanecen pendientes en el plan.
+Los logs Docker locales están limitados a tres archivos de 10 MiB. No se han configurado alertas por correo ni presupuesto: se dejaron fuera del alcance actual a petición del usuario. Las políticas de v1 y recuperación de red están verificadas; las limitaciones de cámara y su mejora para v2 están registradas en seguimiento. Los resultados del ensayo 1080p se documentan por separado.
 
 Guías: [probar API](probar-api.md), [despliegue y recuperación](../deploy/README.md).

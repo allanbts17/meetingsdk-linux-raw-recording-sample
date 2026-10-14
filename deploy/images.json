@@ -1,7 +1,7 @@
 {
-  "revision": "e6b9d47e24ac",
+  "revision": "a8bccae8fd6b",
   "images": {
-    "api": "us-central1-docker.pkg.dev/zoom-app-dev/zoom-bot/api@sha256:d544645aec072ca86bf3ff31bac45a5fa6b35da5fba85c33b47b340b5396f821",
+    "api": "us-central1-docker.pkg.dev/zoom-app-dev/zoom-bot/api@sha256:4dab8832983d99727bfb76aa7fa9b151e8ef9c8ed418fbac90f851c7d2a9b8ad",
     "agent": "us-central1-docker.pkg.dev/zoom-app-dev/zoom-bot/agent@sha256:a9fcf939a6263e8f4b3d0e744b946575bf4be849578380f3d8eb125b1f63a35b"
   }
 }

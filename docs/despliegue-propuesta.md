@@ -5,7 +5,7 @@ Este documento conserva la inspección inicial del 2026-10-13 y la arquitectura 
 ## Requisitos confirmados
 
 - Una reunión simultánea.
-- Videos de entrada con resolución máxima de 1080p. Se propone dimensionar inicialmente para hasta 30 FPS; FPS máximos pendientes de confirmar si fueran superiores.
+- Videos de entrada con resolución máxima de 1080p. Hasta 30 FPS en v1; formatos superiores quedan fuera del alcance.
 - Contenedor alojado en la VM de GCE `zoom-bot-vm`.
 - Videos almacenados en Storage y disponibles mediante enlaces públicos.
 - Control mediante API: entrada independiente de presentación de video/audio/imagen, estado, pausa, reanudación, detención y salida. Las primeras pruebas serán de video.
@@ -41,7 +41,7 @@ Mantener inicialmente `e2-standard-2` para un bot y agente ligero; la API se eje
 
 Esta es una recomendación para iniciar las pruebas, no una garantía de 1080p en producción. La prueba local anterior consumió puntualmente 35,30% de CPU de Docker y 103,9 MiB con salida de 640×480/25 FPS; esos valores no se pueden extrapolar directamente a GCE ni a emisión 1080p.
 
-Antes de dar por validada la VM: reproducir un archivo real 1080p/30 FPS durante al menos diez minutos, medir CPU/RAM, cuadros tardíos, errores del SDK y sincronía. Como criterio inicial propuesto, conservar aproximadamente 30% de margen de CPU y no observar acumulación de desfase ni cortes. Si falta CPU, evaluar 4 vCPU (`e2-standard-4` u otra familia tras medir), sin redimensionar ahora. No se propone GPU para el MVP.
+El usuario autorizó una muestra sintética 1080p/30 FPS de diez minutos con movimiento y pulsos de sincronía. El informe de CPU/RAM, emisión y sincronía se mantiene en [benchmark-1080p.md](benchmark-1080p.md). Una muestra sintética no reemplaza verificar un video real con decodificación más exigente. Como criterio inicial propuesto, conservar aproximadamente 30% de margen de CPU y no observar acumulación de desfase ni cortes. Si falta CPU, evaluar 4 vCPU (`e2-standard-4` u otra familia tras medir), sin redimensionar ahora. No se propone GPU para el MVP.
 
 La resolución del archivo y la resolución emitida son distintas: actualmente Zoom negoció 640×480/25 FPS. Una entrada de 1080p no garantiza que la reunión reciba 1080p; eso dependerá de capacidades/configuración de Zoom y deberá comprobarse aparte.
 
@@ -101,9 +101,9 @@ Detalles de acceso y costos en [api-acceso-y-costos.md](api-acceso-y-costos.md).
 1. Confirmado: FastAPI en Cloud Run y agente/SDK en GCE.
 2. Confirmado: entrada independiente de presentación de video, audio o imagen; primera prueba de video.
 3. Confirmado: caché temporal en VM con Storage como origen.
-4. Confirmado: una reunión y recursos actuales 2 vCPU/8 GiB antes de medir 1080p.
-5. Confirmado: consumidor backend en Cloud Run/GCP, autenticación IAM Invoker con ID token. Pendiente: cuenta de servicio concreta y límites/tiempos del contrato.
-6. Pendiente: implementar, desplegar y validar; las nuevas tareas están en [plan.md](plan.md).
+4. Confirmado: una reunión y 2 vCPU/8 GiB suficientes para el ensayo sintético de entrada 1080p con salida 640x480/25 FPS; informe enlazado arriba.
+5. Confirmado: consumidor backend api, cuenta 722146628233-compute@developer.gserviceaccount.com, IAM Invoker con ID token y límites/tiempos de v1 comprobados. El usuario configura su backend.
+6. Implementación, despliegue y validación de v1 completados en [plan.md](plan.md). Cámara independiente queda como consideración para v2 en seguimiento.
 
 ## Referencias
 

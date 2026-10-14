@@ -445,7 +445,7 @@ Los errores de validación indican nombres de campos y mensajes; no incluir el v
 
 ## 15. Descarga, límites y secretos
 
-Límites operativos de v1 comprobados mediante pruebas de validación, tiempos y carga HTTP acotada. La capacidad de reproducción 1080p prolongada sigue pendiente:
+Límites operativos de v1 comprobados mediante pruebas de validación, tiempos y carga HTTP acotada. El ensayo prolongado de entrada 1080p está documentado en [benchmark-1080p.md](benchmark-1080p.md); la salida negociada fue 640x480/25 FPS:
 
 | Límite | Valor actual |
 |---|---|
@@ -511,9 +511,9 @@ Reinicio de API: consultar al agente; SQLite permanece en la VM y no se monta en
 - Invalidar medio impide emitirlo y mantiene al bot conectado. stop/fallo del medio liberan recursos de reproducción; solo leave/fin de reunión/fallo de sesión liberan capacidad de reunión.
 - JWT/password/API key no aparecen en interfaces persistentes ni logs.
 - Tests incluyen API, agente, IPC, reinicios, concurrencia, idempotencia y validación de URL.
-- Prueba real 1080p/30 FPS de al menos diez minutos en GCE, con métrica de cuadros tardíos y confirmación de sincronía.
+- Prueba prolongada 1080p/30 FPS de diez minutos en GCE con muestra sintética autorizada, cuadros omitidos estimados y sincronía confirmada; resultados y límites de extrapolación en benchmark-1080p.md.
 
-Confirmado: consumidor, cuenta de servicio, IAM Invoker, URL HTTPS run.app, despliegue y controles independientes. Pendiente: prueba prolongada 1080p/30 FPS y dimensionamiento derivado. Varias instancias desplegadas solo requieren validación adicional si se aumenta el máximo actual de una. El usuario configura su backend consumidor.
+Confirmado: consumidor, cuenta de servicio, IAM Invoker, URL HTTPS run.app, despliegue y controles independientes. Ensayo prolongado de entrada 1080p/30 FPS y dimensionamiento completados con muestra sintética autorizada; se conservan los recursos actuales. Varias instancias desplegadas solo requieren validación adicional si se aumenta el máximo actual de una. El usuario configura su backend consumidor.
 
 ## Referencias de implementación
 

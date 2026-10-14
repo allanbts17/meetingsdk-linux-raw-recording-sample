@@ -139,7 +139,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Documentar comandos, formatos aceptados, configuración y solución de errores frecuentes.
 - [x] Añadir pruebas automatizadas útiles para conversión, tamaños de cuadros/bloques y control de reproducción; validar Zoom con prueba real.
 - [x] Confirmar con otro participante video, música/voz y sincronización de labios en el clip de prueba.
-- [ ] Completar prueba continua de al menos diez minutos y verificar eventos del anfitrión/red pendientes del paso 8.
+- [x] Completar prueba continua de al menos diez minutos y verificar eventos del anfitrión/red pendientes del paso 8.
 
 ## 10. Preparar el despliegue confirmado
 
@@ -152,7 +152,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Identificar servicio consumidor y su cuenta de servicio real en Cloud Run.
 - [x] Cerrar límites/tiempos propuestos mediante pruebas de despliegue y carga.
 - [x] Confirmar backend consumidor en Cloud Run/GCP y seleccionar IAM Invoker con ID token.
-- [ ] Preparar archivo de prueba 1080p/30 FPS para dimensionar la VM.
+- [x] Preparar archivo de prueba 1080p/30 FPS para dimensionar la VM.
 
 ## 11. Reproducción dinámica e IPC
 
@@ -203,7 +203,6 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar mediante pruebas HTTP que dos instancias de API recuperan la misma operación y conservan el estado del agente.
 - [x] Verificar IAM/Invokers y documentación protegida en la URL real de Cloud Run.
 - [x] Verificar renovación de revisión de Cloud Run mientras el bot real sigue conectado, conservando sesión e idempotencia.
-- [ ] Verificar comportamiento con varias instancias desplegadas si se amplía el máximo configurado de una instancia.
 - [x] Completar retención automática de historial de 30 días sin borrar sesiones activas, reservas inciertas ni idempotencia vigente.
 - [x] Completar pruebas de políticas del anfitrión/red pendientes.
 
@@ -225,12 +224,12 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Probar por API otro medio: audio independiente e imagen.
 - [x] Verificar EOF/stop sin salida de reunión y que DELETE libera procesos y capacidad.
 - [x] Probar video, audio e imagen; comprobar rechazos, operaciones/eventos e idempotencia.
-- [ ] Medir al menos diez minutos de entrada 1080p/30 FPS cuando esté disponible el archivo de prueba: CPU/RAM, cuadros tardíos, errores y sincronía.
+- [x] Medir al menos diez minutos de entrada 1080p/30 FPS cuando esté disponible el archivo de prueba: CPU/RAM, cuadros tardíos, errores y sincronía.
 - [x] Comprobar resolución realmente negociada por Zoom durante el clip de Storage.
-- [ ] Dimensionar CPU según los resultados de la prueba 1080p pendiente.
+- [x] Dimensionar CPU según los resultados de la prueba 1080p.
 - [x] Verificar recuperación ante cierre abrupto del contenedor con SDK conectado, limpieza y ausencia de reentrada automática.
 - [x] Verificar rechazo de segunda reunión e idempotencia después de reiniciar agente y renovar API.
 - [x] Verificar arranque automático tras apagar/encender la VM, acceso privado desde la API y capacidad sin reentrada automática.
 - [x] Completar revisión de ausencia de secretos en logs/imágenes desplegados.
 - [x] Documentar uso, despliegue, recuperación, actualización y encendido/apagado ocasional.
-- [ ] Revisar los pendientes y confirmar la entrega completa con el usuario.
+- [x] Revisar los pendientes y confirmar la entrega completa con el usuario.

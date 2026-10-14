@@ -36,7 +36,7 @@ La imagen utiliza configuración de ejemplo. Las credenciales reales se montan a
 
 Seguir [docs/configuracion.md](docs/configuracion.md): crear `config/local.json` desde su ejemplo, completar los datos localmente y generar JWT con `node scripts/prepare-config.cjs --av`. Montar configuración y video de solo lectura al ejecutar Docker.
 
-El reproductor actual valida un archivo local antes de conectar. La descarga desde un enlace de Storage y el control por API forman parte de una propuesta de despliegue pendiente de confirmar; todavía no están implementados.
+El despliegue actual usa FastAPI en Cloud Run y un agente/SDK en GCE. El bot entra sin medios; mediante la API puedes iniciar video, audio o imagen desde Storage, pausar, reanudar, detener y salir. Una reunión simultánea; videos de entrada hasta 1080p/30 FPS. Consulta [cómo probar la API y Swagger](docs/probar-api.md) y [operación de la VM](docs/operacion.md). La ejecución local se conserva para desarrollo.
 
 ## Documentación y seguimiento
 
@@ -44,6 +44,7 @@ El reproductor actual valida un archivo local antes de conectar. La descarga des
 - [Seguimiento técnico](docs/seguimiento.md): hallazgos, errores, decisiones y datos pendientes.
 - [Configuración y controles](docs/configuracion.md): ejecución y comandos.
 - [Pruebas](docs/pruebas.md): suite automatizada y validaciones realizadas en Zoom.
+- [Ensayo 1080p de diez minutos](docs/benchmark-1080p.md): métricas, sincronía y dimensionamiento de la VM.
 
 No guardar credenciales ni videos en Git ni incluirlos en la imagen. La situación de soporte/uso automatizado de Meeting SDK está registrada en el seguimiento.
 

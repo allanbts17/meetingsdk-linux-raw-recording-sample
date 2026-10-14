@@ -55,7 +55,7 @@ El proxy añade tu autenticación a todas las peticiones. No tienes que llenar *
 9. Tras stop o EOF, el bot sigue conectado. Puedes hacer otro `/play` en el mismo `bot_id` sin volver a entrar. Para cambiar de un medio aún activo, primero usa stop.
 10. Termina con **DELETE /v1/bots/{bot_id}**, otra clave y **sin cuerpo**. Consulta operación hasta `succeeded`, GET del bot hasta `resource_released: true` y capacidad hasta `available_slots: 1`.
 
-Para una foto indefinida la duración es null y solo termina por stop o salida/límite de sesión. Audio independiente mantiene la cámara apagada. Los videos de ejemplo no validan rendimiento 1080p; esa prueba está pospuesta.
+Para una foto indefinida la duración es null y solo termina por stop o salida/límite de sesión. Audio independiente mantiene la cámara apagada. Los clips cortos de ejemplo no validan rendimiento prolongado. La muestra sintética 1080p de diez minutos y su informe están en [benchmark-1080p.md](benchmark-1080p.md).
 
 ## Probar también desde PowerShell
 
@@ -112,7 +112,7 @@ Para audio cambia el archivo por `config/audio-test.json.example`; para foto por
 | 409 IDEMPOTENCY_CONFLICT | Misma clave con otro cuerpo. Usa una clave nueva para otra orden. |
 | 409 PLAYBACK_BUSY / INVALID_STATE | Esperar entrada, detener el medio anterior o revisar estado. |
 | 409 PLAYBACK_CHANGED | El playback_id no corresponde al intento actual. |
-| 409 PLAYBACK_BLOCKED | Hay bloqueo externo/reconexión; la política del anfitrión sigue pendiente de validación. |
+| 409 PLAYBACK_BLOCKED | Hay bloqueo externo o reconexión; consulta pause_reasons. Detener cámara desde el anfitrión puede impedir su reactivación y pausa ambas pistas en v1. |
 | 422 VALIDATION_ERROR | Revisar número, UUID, tipo de medio, URL y campos permitidos. |
 | 429 RATE_LIMITED | Reducir frecuencia; observar Retry-After. |
 | 503 WORKER_UNAVAILABLE / STATE_RECONCILING | Agente no listo o recuperándose. Esperar y consultar salud. |
