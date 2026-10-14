@@ -126,7 +126,6 @@ Resultado esperado: audio inteligible y continuo por el micrófono del participa
 - [x] Exponer ruta del medio y opciones mediante configuración; retirar nombres de archivo hardcodeados.
 - [x] Elegir interfaz de control inicial sencilla (configuración/CLI); añadir chat o API solo si se requiere.
 - [x] Reactivar automáticamente el micrófono durante una presentación cuando Zoom permite auto-unmute.
-- [ ] Completar y validar reactivación automática de cámara tras desactivarla el anfitrión.
 - [ ] Verificar desconexión/reconexión real y preservación del estado de reproducción.
 
 Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al menos diez minutos, con criterio de tolerancia acordado.
@@ -232,6 +231,6 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar recuperación ante cierre abrupto del contenedor con SDK conectado, limpieza y ausencia de reentrada automática.
 - [x] Verificar rechazo de segunda reunión e idempotencia después de reiniciar agente y renovar API.
 - [x] Verificar arranque automático tras apagar/encender la VM, acceso privado desde la API y capacidad sin reentrada automática.
-- [ ] Completar revisión de ausencia de secretos en logs/imágenes desplegados.
+- [x] Completar revisión de ausencia de secretos en logs/imágenes desplegados.
 - [x] Documentar uso, despliegue, recuperación, actualización y encendido/apagado ocasional.
 - [ ] Revisar los pendientes y confirmar la entrega completa con el usuario.
