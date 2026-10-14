@@ -163,3 +163,12 @@ Segunda prueba mediante agente: enlace público proporcionado, sin mount de vide
 44 pruebas aprobadas en Linux. Cubren descarga interrumpida o excesiva, checksum incorrecto, falta de espacio, URLs/redirecciones no permitidas, cancelación durante transferencia, errores sin queries, caché corrompida, actualización de objeto sin reemplazar versión protegida y leases entre instancias. Una petición play incompatible no detiene ni libera el medio actual. Error de descarga conserva el bot activo sin enviar play al SDK.
 
 El fixture de enlace público está en config/media-test.json.example; diagnóstico tools/media_probe.py y demo --media-request disponibles. La caché temporal se probó dentro del contenedor; montaje del volumen de GCE pendiente. Pins tras caída no se eliminan hasta reconciliar procesos. La cancelación prioritaria vía endpoint sigue pendiente; las pruebas de cancelación actuales usan el evento de parada del worker.
+
+## Secret Manager: proveedor y revisión de identidad (2026-10-13)
+
+- La VM zoom-bot-vm usa 722146628233-compute@developer.gserviceaccount.com y scope cloud-platform. No se modificó la identidad ni IAM.
+- La consulta de servicios habilitados no encontró secretmanager.googleapis.com. La habilitación, creación de secretos y acceso real siguen pendientes.
+- Implementado SecretProvider con ADC, cliente oficial 2.31.0, timeout 10 s, CRC32C, versiones numéricas fijas y errores sanitizados. Credenciales JSON limitadas a clientId/clientSecret; clave maestra Base64 de 32 bytes. No se trasladaron credenciales locales a GCP.
+- Añadido diagnóstico tools.secret_probe que no imprime secretos ni entra a Zoom. El ejecutor conserva códigos de errores de secretos sin registrar payloads.
+- Imagen zoom-agent:dev construida y 49 pruebas Linux aprobadas, incluidas 5 nuevas pruebas de secretos: corrupción, versión inválida, clave estable, formatos y errores privados.
+- La supervisión persistente, heartbeat y recuperación de procesos tras reinicios siguen pendientes; esta entrega solo prepara el proveedor y el diagnóstico.

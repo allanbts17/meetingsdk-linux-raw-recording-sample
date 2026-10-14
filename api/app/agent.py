@@ -8,6 +8,7 @@ from .sdk_control import ControlError
 from .store import StoreError
 from .validation import join_payload, control_payload
 from .media import MediaError
+from .secrets import SecretError
 
 
 class Agent:
@@ -111,7 +112,7 @@ class Agent:
                     self.release_media(job["bot_id"])
                 self.store.finish(job["id"], self.worker_id, succeeded=True)
         except Exception as error:
-            known = isinstance(error, (PayloadError, RuntimeErrorCode, ControlError, StoreError, MediaError))
+            known = isinstance(error, (PayloadError, RuntimeErrorCode, ControlError, StoreError, MediaError, SecretError))
             code = str(error) if known else "WORKER_OPERATION_FAILED"
             # Never persist exception text with paths, URLs or secrets.
             if not code or any(character not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ_" for character in code) or len(code) > 80:

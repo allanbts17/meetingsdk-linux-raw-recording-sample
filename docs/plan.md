@@ -179,6 +179,8 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Implementar caché limitada, archivos de solo lectura, limpieza de temporales y reserva de disco libre.
 - [ ] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
 - [ ] Obtener credenciales desde Secret Manager, generar JWT por entrada y proteger configuración temporal.
+- [x] Implementar proveedor Secret Manager con identidad ADC, versiones fijas, verificación CRC32C y errores sin secretos.
+- [ ] Crear secretos y permisos mínimos; comprobar acceso real desde la VM e integrar el proveedor al servicio persistente.
 - [ ] Supervisar procesos, heartbeat, salida y reinicio; reconciliar sin reentrar automáticamente.
 - [ ] Probar idempotencia, fallos de descarga, cancelaciones, reinicios y limpieza de capacidad.
 

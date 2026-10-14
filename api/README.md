@@ -87,3 +87,17 @@ python -m unittest discover -s tests -v
 ```
 
 Dependencias fijadas del agente: cryptography 50.0.2 y google-crc32c 1.9.0. La caché usa flock y se prueba en Linux dentro de la imagen, incluidos FFprobe/FFmpeg reales; instalar dependencias en un entorno virtual para desarrollo local.
+
+## Secret Manager
+
+`app.secrets.SecretProvider` usa el cliente oficial 2.31.0 e identidad ADC, sin archivos de claves de cuentas de servicio. Recibe dos nombres completos con versión numérica: `projects/PROJECT/secrets/SECRET/versions/1`. No permite `latest`: cambiar silenciosamente la clave maestra impediría recuperar payloads e idempotencia persistidos.
+
+El secreto SDK contiene únicamente JSON con `clientId` y `clientSecret`. El secreto de cifrado contiene 32 bytes aleatorios codificados en Base64, sin salto de línea. Se comprueba CRC32C en cada lectura; el timeout es 10 segundos y los errores públicos son códigos fijos. Las credenciales se obtienen mediante `provider.credentials` al iniciar el runtime; `provider.master_key()` inicializa PayloadCipher y debe conservar la misma versión entre reinicios.
+
+Comprobación de acceso, sin entrar a Zoom ni imprimir valores:
+
+```text
+python3 -m tools.secret_probe --credentials-version projects/PROJECT/secrets/zoom-sdk/versions/1 --master-key-version projects/PROJECT/secrets/zoom-key/versions/1
+```
+
+La API Secret Manager, los secretos, los permisos por secreto y la conexión al servicio persistente siguen pendientes. La VM tiene scope cloud-platform; este scope no sustituye los permisos IAM. Referencia: [acceso y verificación de secretos](https://docs.cloud.google.com/secret-manager/docs/access-secret-version).
