@@ -193,6 +193,8 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 ## 13. API en Cloud Run
 
 - [x] Implementar FastAPI/Pydantic, endpoints de api-propuesta.md y esquema OpenAPI con autenticación declarada.
+- [x] Documentar todas las operaciones en Swagger con parámetros, ejemplos de video/audio/imagen, respuestas y errores.
+- [x] Habilitar y comprobar acceso local autenticado a Swagger mediante proxy gcloud y documentar la secuencia de pruebas.
 - [x] Mantener API sin estado local duradero; consultar y entregar órdenes al agente privado.
 - [x] Propagar idempotencia y persistir en el agente antes de devolver 202; no duplicar órdenes ante timeouts.
 - [x] Implementar autenticación acordada, validación, errores, correlación y logs sin secretos.
