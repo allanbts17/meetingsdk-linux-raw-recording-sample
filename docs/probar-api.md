@@ -57,6 +57,22 @@ El proxy añade tu autenticación a todas las peticiones. No tienes que llenar *
 
 Para una foto indefinida la duración es null y solo termina por stop o salida/límite de sesión. Audio independiente mantiene la cámara apagada. Los clips cortos de ejemplo no validan rendimiento prolongado. La muestra sintética 1080p de diez minutos y su informe están en [benchmark-1080p.md](benchmark-1080p.md).
 
+## Obtener un bearer para acceso directo
+
+Desde la raíz del repositorio:
+
+```powershell
+./scripts/get-api-bearer.ps1
+```
+
+Genera un ID token con la cuenta activa de gcloud y lo copia al portapapeles. Pega solo el token en Authorize de Swagger; para HTTP usa Authorization: Bearer seguido del token. Para obtenerlo como valor en PowerShell:
+
+```powershell
+$token = ./scripts/get-api-bearer.ps1 -PrintToken
+```
+
+El proxy de open-swagger.ps1 ya añade la autenticación; el bearer es útil para acceder directamente a la URL HTTPS de Cloud Run.
+
 ## Probar también desde PowerShell
 
 Con el proxy abierto, en otra consola desde el repositorio:
