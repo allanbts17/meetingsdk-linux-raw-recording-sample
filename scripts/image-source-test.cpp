@@ -43,6 +43,14 @@ int main() {
     indefinite->Halt(); image.Stop();
     const auto stopped = sender.count.load();
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); assert(sender.count == stopped);
+    // JPEG at the SDK's 25 FPS must emit its only decoded frame and repeat it.
+    ImageSender jpegSender;
+    ZoomSDKVideoSource jpeg("/tmp/image-test.jpg", std::make_shared<PlaybackClock>(true, false), true, 1);
+    VideoSourceCapability jpegCap(320, 240, 25);
+    jpeg.onInitialize(&jpegSender, nullptr, jpegCap);
+    jpeg.onStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500)); jpeg.Stop();
+    assert(jpeg.IsCompleted() && !jpeg.HasFailed() && jpeg.AcceptedFrames() == 25 && jpegSender.count == 25);
     auto missing = std::make_shared<PlaybackClock>(true, false);
     image.SetMedia("/tmp/does-not-exist.png", missing, true, 1); image.onStartSend();
     std::this_thread::sleep_for(std::chrono::milliseconds(500)); image.Stop();

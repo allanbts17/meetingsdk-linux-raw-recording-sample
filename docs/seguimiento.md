@@ -223,3 +223,10 @@ El fixture de enlace público está en config/media-test.json.example; diagnóst
 - DELETE completó la salida; capacidad final reserved_slots=0, available_slots=1, worker_status=healthy. Confirmación de controles por estado del SDK/API; la confirmación humana fue de imagen/audio inicial, no una medición de sincronía ni del comportamiento visual de cada control.
 - El video usado tiene entrada 640x480 y duración 109.018 s: esta prueba no valida rendimiento 1080p ni diez minutos. Siguen pendientes audio/imagen por API desplegada, eventos del anfitrión/red, recuperación real ante reinicios y llamada desde el backend api.
 - El cliente Google del agente avisó que Python 3.10 está fuera de soporte para futuras actualizaciones. El despliegue funciona; actualizar la base a Python >=3.11 queda pendiente antes de actualizar dependencias Google.
+
+## Audio independiente y corrección JPEG (2026-10-14)
+
+- Audio de audios/Vientos%20susurrantes(6).mp3 reproducido por API desde GCE; el usuario confirmó audio correcto y cámara apagada. Salida solicitada antes de actualizar el agente.
+- Imagen JPEG de thumbnails/videos/004%20Alabanzas%20sin%20cesar.jpg falló con OPERATION_TIMEOUT: SDK reportó fin con cero cuadros. Reproducción aislada confirmó que FFmpeg con -ss 0 produce cero bytes; sin seek produjo 460800 bytes (640x480 I420).
+- Las imágenes ahora se decodifican sin seek ni filtro fps; el reloj repite el cuadro cacheado al FPS negociado. Los videos conservan seek y filtro fps. Añadida prueba JPEG de 25 FPS, además de PNG/duración/pausa/imagen indefinida. Pruebas nativas de video, AV y controles pasaron; el primer intento del nuevo test requirió una variable lvalue para la capacidad SDK y luego pasó.
+- Pendiente validar la corrección desplegada con images/IMG-20220410-WA0123.jpg, enlace indicado por el usuario.
