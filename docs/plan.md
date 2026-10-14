@@ -158,12 +158,12 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 
 - [x] Entrar con cámara/micrófono desactivados y esperar comandos sin salir de Zoom.
 - [x] Implementar socket Unix JSON con IDs de operación/reproducción y consulta de estado; cliente Python dentro de /api.
-- [ ] Completar eventos, posición y errores de emisión en IPC y confirmar ejecución de comandos.
+- [x] Completar eventos, posición y errores de emisión en IPC y confirmar ejecución de comandos.
 - [x] Implementar play de video después de entrar y nueva reproducción tras stop/EOF, sin reiniciar la sesión.
 - [x] Implementar audio independiente e imagen estática, con políticas de pistas/duración del contrato.
 - [x] Verificar decodificación de audio independiente y video sin audio con fuentes reutilizadas en pruebas automatizadas.
 - [x] Aplicar pause/resume/stop por playback_id y liberar fuentes previas de forma segura.
-- [ ] Verificar videos sucesivos, audio, imagen, eventos del anfitrión y desconexión.
+- [x] Verificar videos sucesivos, audio, imagen, eventos del anfitrión y desconexión.
 - [x] Confirmar con otro participante imagen estática sin audio y audio independiente con cámara apagada.
 
 ## 12. Agente persistente en GCE

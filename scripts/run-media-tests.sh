@@ -34,3 +34,11 @@ ffmpeg -v error -f lavfi -i color=c=blue:size=320x240 -frames:v 1 -threads 1 /tm
 g++ -std=c++11 -pthread -I/app/demo -I/app/demo/include/h \
     "$test_root/image-source-test.cpp" /app/demo/ZoomSDKVideoSource.cpp -o /tmp/image-source-test
 timeout 20 /tmp/image-source-test
+# A longer clip ensures persistent SDK rejection is detected before normal EOF.
+ffmpeg -v error -f lavfi -i testsrc2=size=320x240:rate=30 \
+    -f lavfi -i sine=frequency=440:sample_rate=48000 -t 3 \
+    -c:v libx264 -threads 1 -c:a pcm_s16le /tmp/av-failure-test.mkv
+g++ -std=c++11 -pthread -I/app/demo -I/app/demo/include/h \
+    "$test_root/media-send-failure-test.cpp" /app/demo/ZoomSDKVideoSource.cpp \
+    /app/demo/ZoomSDKVirtualAudioMicEvent.cpp -o /tmp/media-send-failure-test
+timeout 15 /tmp/media-send-failure-test

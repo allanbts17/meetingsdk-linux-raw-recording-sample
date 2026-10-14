@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -20,6 +21,24 @@ class StoreTests(unittest.TestCase):
 
     def join(self, key="idempotency-key-1"):
         return self.store.accept_join("backend", key, FINGERPRINT, SEALED)
+
+    def test_failed_playback_snapshot_preserves_position_and_emits_one_safe_event(self):
+        response, _ = self.join()
+        bot = response["bot_id"]
+        state = {"playback_id": "clip-1", "playback_state": "playing",
+                 "position_seconds": 3.25, "meeting_status": 3,
+                 "token": "private-value", "path": "/private/media"}
+        self.store.snapshot(bot, state)
+        state.update(playback_state="failed", position_seconds=4.5)
+        self.store.snapshot(bot, state)
+        self.store.snapshot(bot, state)
+        failures = [e for e in self.store.events(bot, "backend")
+                    if e["kind"] == "playback" and e["state"] == "failed"]
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(json.loads(failures[0]["data"]),
+                         {"playback_id": "clip-1", "position_seconds": 4.5})
+        self.assertEqual(self.store.session(bot, "backend")["state"], "active")
+        self.assertNotIn("private", str(failures))
 
     def test_same_key_parallel_returns_one_durable_job(self):
         with ThreadPoolExecutor(max_workers=8) as pool:

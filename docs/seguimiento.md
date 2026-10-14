@@ -321,3 +321,10 @@ El fixture de enlace público está en config/media-test.json.example; diagnóst
 
 - El usuario confirmó la interrupción y el regreso del video/audio sincronizados. Prueba real de recuperación de red completada para este corte de 30 s; no implica verificar todas las duraciones/políticas de red. Se solicita DELETE de la sesión de prueba para liberar capacidad, manteniendo la VM encendida.
 - DELETE succeeded, capacidad disponible 1 y worker healthy comprobados tras la prueba. No se apagó la VM.
+
+## Cierre de validación IPC (2026-10-14)
+
+- Revisado protocolo SDK: respuesta correlacionada por operation_id/version, playback_id, estado, posición, cuadros/bloques aceptados, razones de pausa y estado de reunión. Agente espera cuadros/bloques aceptados para confirmar play; reconcilia resultados inciertos sin repetir play. Eventos persistidos desde snapshots y operaciones; ya comprobados en reunión comandos, EOF, pistas sucesivas, audio/imagen, micrófono/cámara y red. Cámara conserva su limitación documentada, mejora diferida a v2.
+- Añadida prueba nativa de rechazo sostenido de sendVideoFrame/send: ambas fuentes reportan HasFailed, cero cuadros/bloques aceptados y no IsCompleted; aprobada con clip sintético de 3 s. Los mensajes FFmpeg Broken pipe son esperados porque se termina el decoder tras el rechazo persistente.
+- Añadida prueba de Store para transición playing a failed con posición, evento único incluso al repetir snapshot, sin campos privados y sin cerrar la reunión. Ocho pruebas Store aprobadas. Se conserva MEDIA_SEND_FAILED como código saneado del agente y los detalles numéricos SDK en diagnóstico privado.
+- Pendientes IPC y prueba de pistas/eventos del paso 11 completados con evidencia acumulada y pruebas de rechazo. No hay cambios de producción ni despliegue nuevo.
