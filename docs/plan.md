@@ -126,7 +126,7 @@ Resultado esperado: audio inteligible y continuo por el micrófono del participa
 - [x] Exponer ruta del medio y opciones mediante configuración; retirar nombres de archivo hardcodeados.
 - [x] Elegir interfaz de control inicial sencilla (configuración/CLI); añadir chat o API solo si se requiere.
 - [x] Reactivar automáticamente el micrófono durante una presentación cuando Zoom permite auto-unmute.
-- [ ] Verificar desconexión/reconexión real y preservación del estado de reproducción.
+- [x] Verificar desconexión/reconexión real y preservación del estado de reproducción.
 
 Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al menos diez minutos, con criterio de tolerancia acordado.
 

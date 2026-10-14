@@ -318,3 +318,6 @@ El fixture de enlace público está en config/media-test.json.example; diagnóst
 - Primer intento de red descartado como validación de reproducción: play falló al arrancar en la sesión anterior. Regla temporal retirada automáticamente y comprobada ausente; sesión cerrada por DELETE antes de repetir.
 - Segundo intento: VideoBot-Network-Test conectado en una sesión nueva; playback playing verificado antes del corte. Regla DOCKER-USER limitada al origen del contenedor y destinos fuera de 10.0.0.0/8 durante 30 s, con eliminación automática systemd programada antes de insertarla. API privada siguió accesible. Restauración success y regla ausente comprobadas.
 - SDK detectó pérdida de red con retraso: API pasó a joining/paused, posición 59.26 s; después volvió a active/in_meeting/playing a 67.28 s, mismo bot y playback_id, sin pause_reasons. Pendiente confirmación humana de sincronía para marcar la prueba de red completa. VM continúa encendida.
+
+- El usuario confirmó la interrupción y el regreso del video/audio sincronizados. Prueba real de recuperación de red completada para este corte de 30 s; no implica verificar todas las duraciones/políticas de red. Se solicita DELETE de la sesión de prueba para liberar capacidad, manteniendo la VM encendida.
+- DELETE succeeded, capacidad disponible 1 y worker healthy comprobados tras la prueba. No se apagó la VM.
