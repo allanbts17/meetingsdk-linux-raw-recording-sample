@@ -29,7 +29,19 @@ Store exige bytes y no cifra por sí mismo. `app/agent.py` valida y cifra las pe
 
 `app/runtime.py` administra el SDK Linux: configuración/JWT fresco y logs 0600 dentro de un directorio 0700 por bot, socket propio y proceso con grupo independiente. La entrada mantiene medios apagados. Play espera contadores de cuadros/bloques aceptados; ante timeout de envío consulta el intento original sin repetirlo. Leave espera cierre y limpia el grupo si hace falta, antes de confirmar capacidad libre. El SDK admite ZOOM_CONFIG_PATH y ZOOM_CONTROL_SOCKET; sin variables conserva el flujo local anterior.
 
-Pendientes: Secret Manager, descargas/caché de Storage, heartbeat y reconciliación de procesos tras reinicio, límites completos de sesión, cancelación prioritaria de play/leave y endpoints HTTP. El agente todavía no está desplegado ni preparado para aceptar tráfico de producción.
+Pendientes: Secret Manager, volumen de caché en GCE, heartbeat y reconciliación de procesos tras reinicio, límites completos de sesión, cancelación prioritaria de play/leave y endpoints HTTP. El agente todavía no está desplegado ni preparado para aceptar tráfico de producción.
+
+## Medios desde Storage
+
+`app/media.py` ofrece MediaCache y leases de archivos. Solo acepta HTTPS a storage.googleapis.com y objetos del bucket zoom-app-dev.firebasestorage.app; valida cada redirección y rechaza credenciales en URL, otros hosts/buckets y traversal. Descarga por bloques con límites aunque falte Content-Length. No registra URLs ni queries; errores se expresan con códigos fijos.
+
+Defaults: video/audio hasta 1 GiB, imagen hasta 10 MiB, caché hasta 2 GiB y reserva mínima de 5 GiB libres. Conexión hasta 10 s, lectura hasta 30 s y descarga total hasta 300 s. Valida CRC32C/MD5 presentes en x-goog-hash; checksum_verified indica si se verificó al menos uno.
+
+FFprobe valida contenedor, pistas, codecs, duración hasta 3600 s, orientación y dimensiones hasta 1920×1080; video hasta 30 FPS. Se decodifica una muestra inicial de 100 ms: errores posteriores corresponden a la reproducción, no a una validación completa previa. MP4/H.264 + AAC cuando se pide audio; MP3, WAV PCM y familia M4A/AAC para audio; PNG/JPEG estático para imagen. El SDK convierte según las capacidades negociadas por Zoom.
+
+Los archivos se publican tras validar, con nombre derivado del contenido y permisos 0400. ETag/GET condicional detectan cambios del objeto; una versión nueva no reemplaza el archivo de otra reproducción. SHA-256 comprueba la copia local. Leases persistentes protegen archivos en reproducción/pausa, incluso frente a otra instancia de caché; la limpieza y eviction solo eliminan archivos no protegidos. Los .part se eliminan en fallos/cancelación. Tras una caída, conservar pins hasta que la supervisión confirme que el SDK anterior terminó.
+
+El agente conserva el lease hasta stop/leave o antes de reemplazar un medio ya terminado. Ante emisión incierta, exige stop antes de liberarlo. Una petición play mientras hay un medio activo falla sin detener ni eliminar el medio actual. La limpieza de caché al finalizar la prueba borra archivos elegibles; el servicio podrá reutilizarlos bajo la política limitada de caché.
 
 ## Imagen de agente y prueba local explícita
 
@@ -50,6 +62,22 @@ python3 -m tools.agent_demo --config /secrets/local.json --video /app/media/vide
 
 La configuración local usa el formato de config/local.json existente. No pasar passwords/tokens como argumentos ni copiarla a la imagen. Al finalizar, la prueba elimina configuración/logs/base temporal y confirma liberación de la capacidad.
 
+Para probar Storage, montar config/media-test.json.example como /requests/media.json y usar --media-request; no montar ningún MP4 local:
+
+```text
+python3 -m tools.agent_demo --config /secrets/local.json --media-request /requests/media.json --hold-seconds 30
+```
+
+Diagnóstico de descarga sin entrar a Zoom:
+
+```text
+python3 -m tools.media_probe --media-request /requests/media.json
+```
+
+Ese diagnóstico solo muestra metadata/códigos; --diagnose añade campos seleccionados de FFprobe. La configuración de caché persistente en volumen de GCE sigue pendiente. La prueba utiliza un directorio temporal fuera de la imagen.
+
+Referencia: [Cloud Storage: verificación de integridad con CRC32C/MD5](https://docs.cloud.google.com/storage/docs/data-validation).
+
 Referencias de cifrado: [AEAD/AESGCM](https://cryptography.io/en/stable/hazmat/primitives/aead/), [HKDF](https://cryptography.io/en/stable/hazmat/primitives/key-derivation-functions/#hkdf).
 
 Pruebas desde api/:
@@ -58,4 +86,4 @@ Pruebas desde api/:
 python -m unittest discover -s tests -v
 ```
 
-Dependencia del agente: `requirements-agent.txt` fija cryptography 50.0.2. Las pruebas también se ejecutan en Linux con la imagen del agente; instalar dependencias en un entorno virtual para desarrollo local.
+Dependencias fijadas del agente: cryptography 50.0.2 y google-crc32c 1.9.0. La caché usa flock y se prueba en Linux dentro de la imagen, incluidos FFprobe/FFmpeg reales; instalar dependencias en un entorno virtual para desarrollo local.

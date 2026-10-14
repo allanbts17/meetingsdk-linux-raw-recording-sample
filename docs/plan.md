@@ -173,7 +173,10 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Cifrar payloads sensibles e integrar la persistencia con el ejecutor del agente.
 - [x] Registrar trabajos antes de aceptar órdenes y ejecutarlos en un worker independiente del consumidor HTTP.
 - [x] Probar entrada, reproducción y salida mediante el agente con proceso/configuración/socket por sesión.
-- [ ] Descargar medios HTTPS de Storage con allowlist, límites, timeouts y validación FFprobe.
+- [x] Descargar medios HTTPS de Storage con allowlist, límites, timeouts y validación FFprobe.
+- [x] Verificar CRC32C/MD5 disponibles, publicar archivos completos de forma atómica y protegerlos mientras el SDK los usa.
+- [x] Probar reproducción desde el enlace público de Storage sin montar videos locales.
+- [x] Implementar caché limitada, archivos de solo lectura, limpieza de temporales y reserva de disco libre.
 - [ ] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
 - [ ] Obtener credenciales desde Secret Manager, generar JWT por entrada y proteger configuración temporal.
 - [ ] Supervisar procesos, heartbeat, salida y reinicio; reconciliar sin reentrar automáticamente.

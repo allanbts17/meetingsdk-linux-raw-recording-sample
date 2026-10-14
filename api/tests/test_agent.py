@@ -6,6 +6,7 @@ from app.agent import Agent
 from app.payloads import PayloadCipher
 from app.sdk_control import ControlError
 from app.store import Store, StoreError
+from app.media import MediaError
 
 
 class FakeRuntime:
@@ -147,3 +148,32 @@ class AgentTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.agent.submit_control("owner", bot, "play", "play-key-00000001", {"media": media})
         self.assertIsNone(self.store.claim("worker"))
+
+    def test_busy_play_does_not_stop_or_unpin_current_media(self):
+        class Lease:
+            path = "/tmp/cache.mp4"
+            released = False
+            def release(self):
+                self.released = True
+        resource = Lease()
+        self.agent.media_resolver = lambda media: resource
+        bot = self.join()
+        self.control(bot, "play", {"media": {"type": "video", "url": "https://storage.test/file"}})
+        other, _ = self.agent.submit_control("owner", bot, "play", "another-play-key-01", {
+            "media": {"type": "video", "url": "https://storage.test/another"}})
+        self.agent.run_once()
+        self.assertEqual(self.store.operation(other["operation_id"], "owner")["error"], "PLAYBACK_ALREADY_ACTIVE")
+        self.assertFalse(resource.released)
+        self.assertNotIn("stop", self.runtime.calls)
+        self.control(bot, "stop", {})
+        self.assertTrue(resource.released)
+
+    def test_failed_download_keeps_bot_active_without_sdk_play(self):
+        bot = self.join()
+        def failed(media):
+            raise MediaError("MEDIA_CHECKSUM_MISMATCH")
+        self.agent.media_resolver = failed
+        result = self.control(bot, "play", {"media": {"type": "video", "url": "https://storage.test/file"}})
+        self.assertEqual(result["error"], "MEDIA_CHECKSUM_MISMATCH")
+        self.assertEqual(self.runtime.calls, ["join"])
+        self.assertEqual(self.store.session(bot, "owner")["state"], "active")

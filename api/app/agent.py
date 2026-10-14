@@ -7,6 +7,7 @@ from .runtime import RuntimeErrorCode
 from .sdk_control import ControlError
 from .store import StoreError
 from .validation import join_payload, control_payload
+from .media import MediaError
 
 
 class Agent:
@@ -16,6 +17,12 @@ class Agent:
         self.operation_timeout = operation_timeout
         self.worker_id = str(uuid.uuid4())
         self.stopping = threading.Event()
+        self.media_resources = {}
+
+    def release_media(self, bot_id):
+        resource = self.media_resources.pop(bot_id, None)
+        if resource and hasattr(resource, "release"):
+            resource.release()
 
     def submit_join(self, owner, key, payload):
         payload = join_payload(payload)
@@ -46,6 +53,7 @@ class Agent:
         job = self.store.claim(self.worker_id)
         if not job:
             return False
+        play_resource_acquired = False
         try:
             aad = context(job["owner"], job["command"], None if job["command"] == "join" else job["bot_id"])
             payload = self.cipher.open(job["payload"], aad)
@@ -57,12 +65,23 @@ class Agent:
                 self.store.finish(job["id"], self.worker_id, succeeded=True, session_state="active")
             elif job["command"] == "leave":
                 cleaned = self.runtime.stop(job["bot_id"])
+                if cleaned:
+                    self.release_media(job["bot_id"])
                 self.store.finish(job["id"], self.worker_id, succeeded=True, session_state="ended", cleanup_confirmed=cleaned)
             elif job["command"] == "play":
                 if not self.media_resolver:
                     raise RuntimeErrorCode("MEDIA_RESOLVER_NOT_CONFIGURED")
                 media = payload["media"]
-                path = self.media_resolver(media)
+                current = self.runtime.status(job["bot_id"])
+                if current.get("playback_state") not in {"idle", "finished", "stopped", "failed"}:
+                    raise RuntimeErrorCode("PLAYBACK_ALREADY_ACTIVE")
+                if current.get("playback_state") == "failed":
+                    self.runtime.command(job["bot_id"], "stop", job["id"], playback_id=current.get("playback_id"))
+                self.release_media(job["bot_id"])
+                resource = self.media_resolver.resolve(media, cancel=self.stopping) if hasattr(self.media_resolver, "resolve") else self.media_resolver(media)
+                self.media_resources[job["bot_id"]] = resource
+                play_resource_acquired = True
+                path = resource.path if hasattr(resource, "path") else resource
                 playback_id = str(uuid.uuid4())
                 kind = media["type"]
                 sdk_type = "video-silent" if kind == "video" and media.get("audio_enabled", True) is False else kind
@@ -88,9 +107,11 @@ class Agent:
                 else:
                     fields["playback_id"] = self.runtime.status(job["bot_id"]).get("playback_id")
                 self.runtime.command(job["bot_id"], job["command"], job["id"], **fields)
+                if job["command"] == "stop":
+                    self.release_media(job["bot_id"])
                 self.store.finish(job["id"], self.worker_id, succeeded=True)
         except Exception as error:
-            known = isinstance(error, (PayloadError, RuntimeErrorCode, ControlError, StoreError))
+            known = isinstance(error, (PayloadError, RuntimeErrorCode, ControlError, StoreError, MediaError))
             code = str(error) if known else "WORKER_OPERATION_FAILED"
             # Never persist exception text with paths, URLs or secrets.
             if not code or any(character not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ_" for character in code) or len(code) > 80:
@@ -100,8 +121,19 @@ class Agent:
             if terminal:
                 try:
                     cleanup = self.runtime.cleanup(job["bot_id"]) is True
+                    if cleanup:
+                        self.release_media(job["bot_id"])
                 except Exception:
                     cleanup = False
+            elif job["command"] == "play" and play_resource_acquired:
+                # An uncertain IPC result may already be decoding this file; stop before unpinning.
+                try:
+                    state = self.runtime.status(job["bot_id"])
+                    if state.get("playback_state") not in {"idle", "stopped", "finished"}:
+                        self.runtime.command(job["bot_id"], "stop", job["id"], playback_id=state.get("playback_id"))
+                    self.release_media(job["bot_id"])
+                except Exception:
+                    pass  # Preserve the pin until confirmed stop/leave; never guess decoder lifetime.
             self.store.finish(job["id"], self.worker_id, succeeded=False, error=code,
                               session_state="failed" if terminal else None, cleanup_confirmed=cleanup)
         return True

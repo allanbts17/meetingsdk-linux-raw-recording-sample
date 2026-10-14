@@ -151,3 +151,15 @@ Pruebas cubren cifrado/contexto alterado, reintento idempotente, payloads sensib
 Resultado final: 26 pruebas Python aprobadas dentro de la imagen Linux del agente con cryptography 50.0.2; build SDK/agente y git diff --check aprobados. La prueba real finalizó por sí misma sin participantes/procesos activos de prueba.
 
 Pendientes del agente: descarga/validación/caché de Storage, Secret Manager, heartbeat y recuperación de procesos tras reinicio, límites completos de sesión y cancelación prioritaria. HTTP también pendiente. La prueba temporal no es la configuración de producción.
+
+## Descarga y caché de Storage — 2026-10-13
+
+MediaCache implementada bajo /api: HTTPS/host/bucket permitidos, redirecciones revalidadas, tamaño real y Content-Length, timeouts, reserva de disco, CRC32C/MD5 y comprobación de archivo mediante FFprobe/decodificación inicial. Publicación atómica y permisos 0400; hashes/ETags sin guardar URL/query en metadata. Leases persistentes y bloqueo de caché protegen archivos usados, revalidación condicional detecta versiones nuevas y eviction mantiene el límite sin borrar pins. Fallos/cancelación limpian .part.
+
+Primera prueba entró pero falló preparando el medio y salió limpiamente. Causa: nombre stream_side_data no admitido por FFprobe 4.4 de la imagen. El selector genérico side_data también activaba packets/frames y producía JSON inválido en un fixture. Corregido a stream_side_data_list y agregado test con FFprobe/FFmpeg reales para video, audio, PNG, rotación y contenido inválido.
+
+Segunda prueba mediante agente: enlace público proporcionado, sin mount de video local. Descargados 4.004.494 bytes; CRC32C/MD5 verificados; H.264/AAC, 640×480 y 109.018 s. Usuario confirma video/audio correctos en Zoom. Eventos agent.joined, agent.playing, media.ready y agent.ended; capacidad libre=1 y salida 0. No se desplegaron recursos en GCE/Cloud Run.
+
+44 pruebas aprobadas en Linux. Cubren descarga interrumpida o excesiva, checksum incorrecto, falta de espacio, URLs/redirecciones no permitidas, cancelación durante transferencia, errores sin queries, caché corrompida, actualización de objeto sin reemplazar versión protegida y leases entre instancias. Una petición play incompatible no detiene ni libera el medio actual. Error de descarga conserva el bot activo sin enviar play al SDK.
+
+El fixture de enlace público está en config/media-test.json.example; diagnóstico tools/media_probe.py y demo --media-request disponibles. La caché temporal se probó dentro del contenedor; montaje del volumen de GCE pendiente. Pins tras caída no se eliminan hasta reconciliar procesos. La cancelación prioritaria vía endpoint sigue pendiente; las pruebas de cancelación actuales usan el evento de parada del worker.
