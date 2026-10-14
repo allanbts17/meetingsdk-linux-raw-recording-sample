@@ -216,17 +216,20 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Confirmar desde el host la finalización del contenedor anterior antes de reconciliar directorios de otro namespace PID.
 - [x] Implementar scripts y unidades systemd para comprobar contenedor/namespace anteriores, recuperar y supervisar heartbeat.
 - [x] Desplegar API Cloud Run con URL HTTPS run.app, autenticación y escalado configurados.
-- [ ] Configurar logs, métricas, alertas de fallos y control de costos.
+- [x] Limitar logs locales Docker a tres archivos de 10 MiB y documentar operación ocasional de la VM.
 
 ## 15. Validación integral y entrega
 
 - [x] Probar por API: entrar sin medios, reproducir URL, pausar, reanudar, detener, repetir el video y salir.
 - [x] Probar por API otro medio: audio independiente e imagen.
-- [ ] Verificar EOF/stop sin salida de reunión y que DELETE libera procesos y capacidad.
-- [ ] Probar video, audio e imagen; comprobar rechazos, operaciones/eventos e idempotencia.
+- [x] Verificar EOF/stop sin salida de reunión y que DELETE libera procesos y capacidad.
+- [x] Probar video, audio e imagen; comprobar rechazos, operaciones/eventos e idempotencia.
 - [ ] Medir al menos diez minutos de entrada 1080p/30 FPS cuando esté disponible el archivo de prueba: CPU/RAM, cuadros tardíos, errores y sincronía.
-- [ ] Comprobar resolución realmente negociada por Zoom y dimensionar CPU según resultados.
+- [x] Comprobar resolución realmente negociada por Zoom durante el clip de Storage.
+- [ ] Dimensionar CPU según los resultados de la prueba 1080p pendiente.
 - [x] Verificar recuperación ante cierre abrupto del contenedor con SDK conectado, limpieza y ausencia de reentrada automática.
 - [x] Verificar rechazo de segunda reunión e idempotencia después de reiniciar agente y renovar API.
-- [ ] Verificar reinicio de VM, conectividad privada, autenticación y ausencia de secretos en logs/imágenes.
-- [ ] Documentar uso, despliegue, recuperación y actualización; marcar entrega completa tras validar con otro participante.
+- [x] Verificar arranque automático tras apagar/encender la VM, acceso privado desde la API y capacidad sin reentrada automática.
+- [ ] Completar revisión de ausencia de secretos en logs/imágenes desplegados.
+- [x] Documentar uso, despliegue, recuperación, actualización y encendido/apagado ocasional.
+- [ ] Revisar los pendientes y confirmar la entrega completa con el usuario.

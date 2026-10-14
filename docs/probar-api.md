@@ -122,4 +122,8 @@ Si pierdes la respuesta de una orden, **repite el mismo método/ruta/cuerpo con 
 
 El proxy prueba directamente `zoom-bot-api` con tu cuenta de gcloud. Tu backend Node es una integración distinta, todavía no desplegada; su configuración y prueba están en [la guía Node](../api/integrations/node/README.md).
 
+En `/events`, identifica y pagina por `sequence`, no por `type`. Una transición observada por el SDK y la finalización de su operación pueden producir dos eventos `meeting.joined` con secuencias distintas; eso no significa que el bot haya entrado dos veces. Usa `next_after_sequence` para continuar y el estado del bot para conocer su situación actual.
+
+Para encender y apagar la VM cuando la uses ocasionalmente, consulta [operacion.md](operacion.md).
+
 Referencias: [proxy oficial gcloud](https://docs.cloud.google.com/sdk/gcloud/reference/run/services/proxy), [autenticación de desarrolladores](https://docs.cloud.google.com/run/docs/authenticating/developers).
