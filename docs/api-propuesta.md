@@ -507,7 +507,7 @@ Reinicio de API: consultar al agente; SQLite permanece en la VM y no se monta en
 - Crear bot no descarga ni reproduce medios; entra con cámara/micrófono apagados y permanece conectado.
 - play inicia video/audio/imagen en el bot seleccionado; medios sucesivos no provocan salir/reentrar a Zoom. Las primeras pruebas reales se centran en video.
 - pause/resume/stop/leave cumplen los controles ya confirmados en Zoom.
-- Host mute/video off y reconexión pausan ambas pistas sin perder intención manual ni contrarrestar al anfitrión.
+- Mute/video off pausan temporalmente ambas pistas y el bot intenta reactivarlas mediante las APIs permitidas por Zoom. Si Zoom niega el permiso, conserva el bloqueo y limita los reintentos. Recuperar disponibilidad no elimina una pausa manual. Reconexión pausa ambas pistas.
 - Invalidar medio impide emitirlo y mantiene al bot conectado. stop/fallo del medio liberan recursos de reproducción; solo leave/fin de reunión/fallo de sesión liberan capacidad de reunión.
 - JWT/password/API key no aparecen en interfaces persistentes ni logs.
 - Tests incluyen API, agente, IPC, reinicios, concurrencia, idempotencia y validación de URL.

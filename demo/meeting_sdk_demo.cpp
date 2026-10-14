@@ -7,6 +7,7 @@
 #include <glib-unix.h>
 #include "MediaValidation.h"
 #include "SdkControlServer.h"
+#include "MediaRestorePolicy.h"
 #include <sstream>
 #include <thread>
 #include <sys/syscall.h>
@@ -66,8 +67,8 @@ USING_ZOOM_SDK_NAMESPACE
 std::string DEFAULT_AUDIO_SOURCE = "/app/media/video.mp4";
 ZoomSDKVirtualAudioMicEvent* virtual_microphone_source = nullptr;
 std::shared_ptr<PlaybackClock> playback_clock;
-unsigned int audio_start_attempts = 0;
-bool audio_started = false;
+MediaRestorePolicy audio_restore, video_restore;
+std::string PlaybackState();
 std::atomic<bool> music_audio_configured{false};
 unsigned int music_audio_attempts = 0;
 
@@ -876,26 +877,51 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 }
 
 
-gboolean timeout_callback(gpointer data)
+gboolean recoverMedia(gpointer)
 {
-	if (!shutdown_requested && playback_clock && m_pMeetingService) {
+	const auto playback = PlaybackState();
+	if (shutdown_requested || !playback_clock || !m_pMeetingService ||
+		(playback != "playing" && playback != "paused" && playback != "waiting")) {
+		audio_restore.Reset(); video_restore.Reset(); return TRUE;
+	}
 		const auto status = m_pMeetingService->GetMeetingStatus();
 		if (status == MEETING_STATUS_RECONNECTING) playback_clock->Pause("network_unavailable");
-		else if (status == MEETING_STATUS_INMEETING) playback_clock->RemoveReason("network_unavailable");
-	}
+		else if (status == MEETING_STATUS_INMEETING) {
+			const auto myself = getMyself();
+			if (!myself) return TRUE;
+			const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+			const bool audio = SendAudioRawData && virtual_microphone_source && !virtual_microphone_source->IsCompleted() && !virtual_microphone_source->HasFailed();
+			const bool video = SendVideoRawData && virtual_camera_source && !virtual_camera_source->IsCompleted() && !virtual_camera_source->HasFailed();
+			if (audio && myself->IsAudioMuted()) playback_clock->Pause("audio_muted");
+			if (video && !myself->IsVideoOn()) playback_clock->Pause("video_disabled");
+			const auto audioController = m_pMeetingService->GetMeetingAudioController();
+			if (audio_restore.ShouldAttempt(audio, !myself->IsAudioMuted(), audioController && audioController->CanUnMuteBySelf(), now)) {
+				const auto result = audioController->UnMuteAudio(myself->GetUserID());
+				audio_restore.Attempted(result == SDKERR_SUCCESS, now);
+				std::cout << "Audio restoration SDK result: " << result << std::endl;
+			}
+			if (video_restore.ShouldAttempt(video, myself->IsVideoOn(), true, now)) {
+				const auto result = m_pMeetingService->GetMeetingVideoController()->UnmuteVideo();
+				video_restore.Attempted(result == SDKERR_SUCCESS, now);
+				std::cout << "Video restoration SDK result: " << result << std::endl;
+			}
+			if (audio && !myself->IsAudioMuted()) {
+				playback_clock->RemoveReason("audio_muted");
+				if (!virtual_microphone_source->IsSending()) virtual_microphone_source->onMicStartSend();
+			}
+			if (video && myself->IsVideoOn()) {
+				playback_clock->RemoveReason("video_disabled");
+				if (!virtual_camera_source->IsSending()) virtual_camera_source->onStartSend();
+			}
+			playback_clock->RemoveReason("network_unavailable");
+		}
+	return TRUE;
+}
+
+gboolean timeout_callback(gpointer data)
+{
 	if (!shutdown_requested && virtual_microphone_source && virtual_microphone_source->IsSending() &&
 		!music_audio_configured && music_audio_attempts++ < 5) ConfigureMusicAudio();
-	if (!shutdown_requested && SendAudioRawData && virtual_microphone_source && m_pMeetingService &&
-		m_pMeetingService->GetMeetingStatus() == MEETING_STATUS_INMEETING && !audio_started) {
-		if (virtual_microphone_source->IsSending()) audio_started = true;
-		else if (audio_start_attempts++ < 15) {
-			const auto myself = getMyself();
-			if (myself) {
-				const auto result = m_pMeetingService->GetMeetingAudioController()->UnMuteAudio(myself->GetUserID());
-				std::cout << "Initial microphone unmute, SDK result: " << result << std::endl;
-			}
-		}
-	}
 	if (shutdown_requested && m_pMeetingService) {
 		const auto status = m_pMeetingService->GetMeetingStatus();
 		if (status == MEETING_STATUS_IDLE || status == MEETING_STATUS_ENDED || status == MEETING_STATUS_FAILED) {
@@ -960,7 +986,7 @@ bool StartPlayback(const std::string& path, bool video, bool audio, std::string&
 	playback_clock = std::make_shared<PlaybackClock>(video, audio);
 	DEFAULT_VIDEO_SOURCE = DEFAULT_AUDIO_SOURCE = path;
 	SendVideoRawData = video; SendAudioRawData = audio;
-	audio_started = false; audio_start_attempts = 0;
+	audio_restore.Reset(); video_restore.Reset();
 	music_audio_configured = false; music_audio_attempts = 0;
 	SDKError result = SDKERR_SUCCESS;
 	if (video) {
@@ -1146,6 +1172,7 @@ int main(int argc, char* argv[])
 
 	// add source to default context
 	g_timeout_add(1000, timeout_callback, loop);
+	g_timeout_add(200, recoverMedia, nullptr);
 	if (!app_exit_code) g_main_loop_run(loop);
 	if (virtual_camera_source) virtual_camera_source->Stop();
 	if (virtual_microphone_source) virtual_microphone_source->Stop();

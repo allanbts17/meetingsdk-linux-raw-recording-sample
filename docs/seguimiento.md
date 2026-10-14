@@ -278,3 +278,11 @@ El fixture de enlace público está en config/media-test.json.example; diagnóst
 - DELETE succeeded, sesión ended/resource_released=true, evento bot.ended, capacidad reserved=0/available=1 y worker healthy. Host confirmó cero procesos meetingSDKDemo/FFmpeg y directorio de ejecución ausente. Se solicitó apagar la VM al terminar.
 - Nueva guía docs/operacion.md para arrancar, comprobar salud, usar Swagger y apagar. Backend Node queda a cargo del usuario; no se despliega desde esta sesión.
 - Estado final de VM verificado: TERMINATED. No quedan alertas configuradas ni permisos nuevos de telemetría; se conserva el cambio nativo pospuesto fuera de estos commits.
+
+## Reactivación de pistas retomada (2026-10-14)
+
+- El usuario indicó mantener la VM encendida hasta nueva orden y retomar el punto de audio/video frente al anfitrión. VM y Docker Desktop iniciados; no se apagará la VM al terminar estas pruebas.
+- Sustituida la detección local pospuesta por una política activa cada 200 ms en el hilo principal del SDK. Solo interviene mientras hay reproducción waiting/playing/paused; nunca tras stop/EOF/salida ni para una pista ausente (audio-only/video-silent/imagen).
+- Audio usa CanUnMuteBySelf y UnMuteAudio; video usa UnmuteVideo y comprueba el estado real posterior. Un resultado de éxito no se toma como recuperación hasta observar la pista activa. Reintento tras éxito pendiente: 1 s; error: 3 s; sin permiso audio no llama unmute. Fuentes detenidas se reinician solo tras recuperar estado, sin eliminar pausa manual.
+- Retirado el bucle antiguo de unmute inicial que podía intentar actuar tras stop antes del primer callback. Pruebas nativas de reintentos/permisos/pausa manual y suites de video/AV/controles/imágenes aprobadas; ejecutable SDK compilado. Falta despliegue y comprobación con anfitrión real.
+- Referencias consultadas: https://marketplacefront.zoom.us/sdk/meeting/linux/class_i_meeting_audio_controller.html y https://marketplacefront.zoom.us/sdk/meeting/linux/class_i_meeting_video_controller.html. La política no puede garantizar activación si Zoom rechaza la operación.
