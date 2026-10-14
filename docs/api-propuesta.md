@@ -453,7 +453,7 @@ Valores iniciales propuestos, configurables en despliegue y sujetos a prueba 108
 | Archivo video | MP4, H.264 y audio AAC cuando audio esté habilitado; puede ampliarse tras pruebas. |
 | Archivo audio | MP3, WAV PCM o M4A/AAC, validado por decodificación y convertido a PCM del SDK. |
 | Archivo imagen | PNG o JPEG estático; validar dimensiones/decodificación. SVG, GIF animado y otros formatos quedan fuera de v1. |
-| Resolución de entrada | Hasta 1920×1080 en orientación de reproducción; considerar rotación al validar. |
+| Resolución de entrada | Video: hasta 1920×1080 en orientación de reproducción. Imagen: hasta 4096 por lado y 16 megapíxeles; se adapta al tamaño de cámara negociado. Considerar rotación al validar. |
 | FPS de entrada | Hasta 30 inicialmente; confirmar si se necesitan 60 FPS. |
 | Tamaño | 1 GiB por video/audio; 10 MiB por imagen. |
 | Duración | Hasta 3600 s, además del límite de sesión elegido. |

@@ -218,7 +218,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 ## 15. Validación integral y entrega
 
 - [x] Probar por API: entrar sin medios, reproducir URL, pausar, reanudar, detener, repetir el video y salir.
-- [ ] Probar por API otro medio: audio independiente e imagen.
+- [x] Probar por API otro medio: audio independiente e imagen.
 - [ ] Verificar EOF/stop sin salida de reunión y que DELETE libera procesos y capacidad.
 - [ ] Probar video, audio e imagen; comprobar rechazos, operaciones/eventos e idempotencia.
 - [ ] Medir al menos diez minutos de entrada 1080p/30 FPS: CPU/RAM, cuadros tardíos, errores y sincronía.
