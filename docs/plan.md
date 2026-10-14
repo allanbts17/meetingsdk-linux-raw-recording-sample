@@ -167,6 +167,8 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 ## 12. Agente persistente en GCE
 
 - [ ] Implementar agente Python con SQLite en volumen persistente: sesiones, operaciones, eventos e idempotencia.
+- [x] Implementar servicio persistente con directorio de estado configurable, bloqueo de propietario único y worker separado del heartbeat.
+- [ ] Desplegar el servicio en el volumen de GCE y probarlo con el SDK real desde la VM.
 - [x] Implementar base SQLite para sesiones, operaciones en cola, eventos e idempotencia.
 - [x] Reservar capacidad mediante transacción y rechazar una segunda reunión aun con peticiones concurrentes.
 - [x] Verificar claim exclusivo, recuperación de idempotencia y conservación de capacidad hasta confirmar limpieza.
@@ -178,10 +180,13 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Probar reproducción desde el enlace público de Storage sin montar videos locales.
 - [x] Implementar caché limitada, archivos de solo lectura, limpieza de temporales y reserva de disco libre.
 - [ ] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
-- [ ] Obtener credenciales desde Secret Manager, generar JWT por entrada y proteger configuración temporal.
+- [x] Obtener credenciales desde Secret Manager, generar JWT por entrada y proteger configuración temporal.
 - [x] Implementar proveedor Secret Manager con identidad ADC, versiones fijas, verificación CRC32C y errores sin secretos.
-- [ ] Crear secretos y permisos mínimos; comprobar acceso real desde la VM e integrar el proveedor al servicio persistente.
-- [ ] Supervisar procesos, heartbeat, salida y reinicio; reconciliar sin reentrar automáticamente.
+- [x] Crear secretos y permisos mínimos; comprobar acceso real desde la VM e integrar el proveedor al servicio persistente.
+- [x] Supervisar procesos, heartbeat, salida y reinicio; reconciliar sin reentrar automáticamente.
+- [x] Verificar limpieza de procesos huérfanos, bloqueo de una segunda instancia, heartbeat durante trabajos y conservación de capacidad ante limpieza incierta.
+- [x] Aplicar duración máxima desde la aceptación, timeout de reconexión y snapshots sin secretos.
+- [ ] Implementar prioridad y cancelación de operaciones para stop/leave durante descarga o entrada.
 - [ ] Probar idempotencia, fallos de descarga, cancelaciones, reinicios y limpieza de capacidad.
 
 ## 13. API en Cloud Run
@@ -199,6 +204,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [ ] Configurar Direct VPC egress en us-central1 y acceso al agente por IP interna de la VM.
 - [ ] Limitar firewall del agente al origen de Cloud Run y autenticar la comunicación interna.
 - [ ] Desplegar agente/worker con volumen persistente y supervisión al arrancar la VM.
+- [ ] Confirmar desde el host la finalización del contenedor anterior antes de reconciliar directorios de otro namespace PID.
 - [ ] Desplegar API Cloud Run con URL HTTPS run.app, autenticación y escalado configurados.
 - [ ] Configurar logs, métricas, alertas de fallos y control de costos.
 

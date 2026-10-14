@@ -100,4 +100,32 @@ Comprobación de acceso, sin entrar a Zoom ni imprimir valores:
 python3 -m tools.secret_probe --credentials-version projects/PROJECT/secrets/zoom-sdk/versions/1 --master-key-version projects/PROJECT/secrets/zoom-key/versions/1
 ```
 
-La API Secret Manager, los secretos, los permisos por secreto y la conexión al servicio persistente siguen pendientes. La VM tiene scope cloud-platform; este scope no sustituye los permisos IAM. Referencia: [acceso y verificación de secretos](https://docs.cloud.google.com/secret-manager/docs/access-secret-version).
+Secret Manager está habilitado en zoom-app-dev. Existen zoom-bot-sdk y zoom-bot-master-key, versión 1, con acceso por secreto para la identidad actual de la VM. Se comprobó desde la VM acceso, formato y CRC32C mediante metadata/REST sin imprimir valores. El servicio usa ADC con el cliente oficial; su ejecución en GCE con el SDK real sigue pendiente del despliegue. La VM tiene scope cloud-platform; este scope no sustituye los permisos IAM. Referencia: [acceso y verificación de secretos](https://docs.cloud.google.com/secret-manager/docs/access-secret-version).
+
+El script scripts/provision-agent-secrets.ps1 es de bootstrap: lee la configuración local, usa temporales con ACL privada y los elimina al terminar. Rechaza secretos existentes para impedir la regeneración accidental de la clave maestra. La rotación requiere una migración explícita de datos; no volver a ejecutar el bootstrap sobre estos secretos.
+
+## Servicio persistente y recuperación
+
+El CMD de la imagen inicia PulseAudio y `tools.agent_service`. El agente espera órdenes en SQLite; no entra a ninguna reunión al arrancar. La interfaz HTTP privada se implementará en el siguiente paso. `config/agent.env.example` contiene únicamente nombres de recursos y ruta de estado, sin valores privados.
+
+El volumen `/state` contiene state.db, WAL, configuración pública de la versión de clave, caché y directorios privados de ejecución. Debe conservarse entre reinicios; no ejecutar dos agentes con distintos volúmenes contra la misma capacidad. Un flock exclusivo impide dos propietarios del mismo estado. La versión de clave registrada debe coincidir al reiniciar; un cambio falla antes de ejecutar trabajos.
+
+El heartbeat se persiste cada 5 segundos en un thread independiente, incluso durante descargas o espera de admisión. Su consulta deja de estar ready tras 15 segundos sin actualización o al detenerse. Esto no libera la capacidad. La supervisión del SDK corre en el thread del worker y guarda snapshots con campos permitidos, sin rutas, URLs ni credenciales. El máximo de sesión cuenta desde la aceptación, incluida cola/entrada; cancela descargas y espera y provoca limpieza. Una reconexión tiene 120 segundos; IPC inaccesible durante 15 segundos provoca limpieza. Estos límites requieren pruebas reales de red/anfitrión en GCE.
+
+Antes de iniciar el SDK se persiste un token de propietario; sus hijos heredan el token. Un wrapper Linux configura parent-death SIGKILL antes de exec, con comprobación de la carrera de arranque. La recuperación identifica procesos por ese token y utiliza pidfds para evitar matar un PID reutilizado. Solo después de confirmar ausencia de procesos elimina configuración/logs y libera capacidad/pins. Un fallo de inspección conserva la reserva. Al reiniciar, cancela trabajos anteriores y mantiene sus respuestas idempotentes; no reentra automáticamente.
+
+Ejemplo previsto dentro de la imagen en GCE, con un volumen persistente montado en `/state` y las variables públicas de agent.env.example:
+
+```text
+/opt/agent/tools/run-agent.sh
+```
+
+Prueba de acceso metadata/REST sin dependencias, exclusiva de GCE:
+
+```text
+python3 -m tools.vm_secret_probe
+```
+
+Pendientes: HTTP privado/API Cloud Run, cancelación prioritaria stop/leave, despliegue y supervisión al arrancar la VM. La identidad actual es la cuenta Compute predeterminada; sustituirla por una cuenta dedicada al configurar infraestructura, sin retirar permisos preexistentes de la VM.
+
+La recuperación registra boot ID y namespace PID. Si un contenedor nuevo conserva directorios de ejecución de otro namespace durante el mismo arranque de la VM, falla con RUNTIME_NAMESPACE_CHANGED y conserva la reserva: sus procesos no serían visibles desde el nuevo contenedor. El despliegue debe comprobar desde el host que el contenedor anterior y sus procesos terminaron antes de limpiar esos directorios. Esa comprobación del host se implementará con la supervisión de GCE. Tras un reinicio completo de la VM, los procesos del boot anterior no pueden seguir vivos y se reconcilian automáticamente.

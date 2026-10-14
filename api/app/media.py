@@ -387,3 +387,13 @@ class MediaCache:
                 data = json.loads(path.read_text())
                 if data.get("file") not in pinned:
                     path.unlink()
+
+    def reconcile_pins(self, *, cleanup_confirmed=False):
+        """Only the singleton supervisor may clear crash pins after native cleanup."""
+        if not cleanup_confirmed:
+            raise MediaError("SDK_CLEANUP_UNCONFIRMED")
+        with self.locked():
+            for marker in (self.root / ".pins").iterdir():
+                if marker.is_symlink() or not marker.is_file():
+                    raise MediaError("CACHE_STATE_INVALID")
+                marker.unlink()

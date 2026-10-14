@@ -40,6 +40,16 @@ class Store:
                     response TEXT NOT NULL, expires REAL NOT NULL,
                     PRIMARY KEY(owner,method,route,key)
                 );
+                CREATE TABLE IF NOT EXISTS worker_health (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    worker_id TEXT NOT NULL, updated REAL NOT NULL, ready INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS session_limits (
+                    bot_id TEXT PRIMARY KEY REFERENCES sessions(id), deadline REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS snapshots (
+                    bot_id TEXT PRIMARY KEY REFERENCES sessions(id), body TEXT NOT NULL, updated REAL NOT NULL
+                );
             """)
         Path(self.path).chmod(0o600)
 
@@ -193,3 +203,50 @@ class Store:
                               WHERE bot_id=? AND status IN ('queued','running')""", (session["id"],))
                 db.execute("INSERT INTO events(bot_id,kind,state,created) VALUES (?,'worker_restart','failed',?)", (session["id"], time.time()))
             return len(sessions)
+
+    def heartbeat(self, worker_id, *, ready=True):
+        with self.transaction() as db:
+            db.execute("INSERT OR REPLACE INTO worker_health VALUES (1,?,?,?)", (worker_id, time.time(), int(ready)))
+
+    def health(self, stale_after=15):
+        with self.connection() as db:
+            row = db.execute("SELECT * FROM worker_health WHERE singleton=1").fetchone()
+            if not row:
+                return {"ready": False, "heartbeat_age_seconds": None}
+            age = max(0, time.time() - row["updated"])
+            return {"ready": bool(row["ready"]) and age <= stale_after, "heartbeat_age_seconds": age}
+
+    def set_deadline(self, bot_id, maximum):
+        with self.transaction() as db:
+            row = db.execute("SELECT created FROM sessions WHERE id=?", (bot_id,)).fetchone()
+            if not row:
+                raise StoreError("BOT_NOT_FOUND")
+            db.execute("INSERT OR REPLACE INTO session_limits VALUES (?,?)", (bot_id, row["created"] + maximum))
+            return row["created"] + maximum
+
+    def reserved_sessions(self):
+        with self.connection() as db:
+            return [dict(row) for row in db.execute("""SELECT s.*,l.deadline FROM sessions s
+                LEFT JOIN session_limits l ON l.bot_id=s.id WHERE s.reserves=1""")]
+
+    def snapshot(self, bot_id, state):
+        allowed = {"playback_id", "playback_state", "position_seconds", "video_frames_sent",
+                   "audio_blocks_sent", "meeting_status", "in_meeting", "shutdown_requested"}
+        safe = {key: value for key, value in state.items() if key in allowed}
+        body = json.dumps(safe, allow_nan=False)
+        with self.transaction() as db:
+            db.execute("INSERT OR REPLACE INTO snapshots VALUES (?,?,?)", (bot_id, body, time.time()))
+
+    def end_session(self, bot_id, error, *, cleanup_confirmed):
+        if not re.fullmatch(r"[A-Z_]{1,80}", error):
+            raise StoreError("INVALID_ERROR_CODE")
+        with self.transaction() as db:
+            row = db.execute("SELECT reserves,state FROM sessions WHERE id=?", (bot_id,)).fetchone()
+            if not row or not row["reserves"]:
+                return
+            if row["state"] == "failed" and not cleanup_confirmed:
+                return  # Keep the reservation without flooding identical failure events.
+            db.execute("UPDATE sessions SET state='failed',reserves=? WHERE id=?", (0 if cleanup_confirmed else 1, bot_id))
+            db.execute("""UPDATE operations SET status='cancelled',error=?,payload=NULL
+                WHERE bot_id=? AND status IN ('queued','running')""", (error, bot_id))
+            db.execute("INSERT INTO events(bot_id,kind,state,created) VALUES (?,?,?,?)", (bot_id, error, "failed", time.time()))

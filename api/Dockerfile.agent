@@ -6,5 +6,6 @@ COPY requirements-agent.txt .
 RUN python3 -m pip install --no-cache-dir -r requirements-agent.txt
 COPY app/ ./app/
 COPY tools/ ./tools/
+RUN sed -i 's/\r$//' tools/run-agent.sh && chmod +x tools/run-agent.sh
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-CMD ["python3", "-m", "tools.agent_demo", "--help"]
+CMD ["/opt/agent/tools/run-agent.sh"]

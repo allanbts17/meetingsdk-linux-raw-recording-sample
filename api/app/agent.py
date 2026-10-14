@@ -11,6 +11,28 @@ from .media import MediaError
 from .secrets import SecretError
 
 
+class OperationCancellation:
+    def __init__(self, agent, deadline=None):
+        self.agent, self.deadline = agent, deadline
+
+    def reason(self):
+        if self.agent.stopping.is_set():
+            return "AGENT_STOPPING"
+        if self.deadline is not None and time.time() >= self.deadline:
+            return "SESSION_TIMEOUT"
+        process = getattr(self.agent.runtime, "process", None)
+        if process is not None and process.poll() is not None:
+            return "SDK_PROCESS_EXITED"
+        return None
+
+    def is_set(self):
+        return self.reason() is not None
+
+    def wait(self, seconds):
+        self.agent.stopping.wait(seconds)
+        return self.is_set()
+
+
 class Agent:
     def __init__(self, store, cipher, runtime, media_resolver=None, operation_timeout=30):
         self.store, self.cipher, self.runtime = store, cipher, runtime
@@ -19,6 +41,9 @@ class Agent:
         self.worker_id = str(uuid.uuid4())
         self.stopping = threading.Event()
         self.media_resources = {}
+        self.cancellation = OperationCancellation(self)
+        self.unresponsive_since = {}
+        self.reconnecting_since = {}
 
     def release_media(self, bot_id):
         resource = self.media_resources.pop(bot_id, None)
@@ -37,7 +62,7 @@ class Agent:
 
     def wait_status(self, job, predicate, timeout):
         deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline and not self.stopping.is_set():
+        while time.monotonic() < deadline and not self.cancellation.is_set():
             try:
                 state = self.runtime.status(job["bot_id"])
             except (FileNotFoundError, ConnectionRefusedError, TimeoutError):
@@ -48,7 +73,7 @@ class Agent:
             if predicate(state):
                 return state
             self.stopping.wait(0.1)
-        raise RuntimeErrorCode("AGENT_STOPPING" if self.stopping.is_set() else "OPERATION_TIMEOUT")
+        raise RuntimeErrorCode(self.cancellation.reason() or "OPERATION_TIMEOUT")
 
     def run_once(self):
         job = self.store.claim(self.worker_id)
@@ -59,9 +84,18 @@ class Agent:
             aad = context(job["owner"], job["command"], None if job["command"] == "join" else job["bot_id"])
             payload = self.cipher.open(job["payload"], aad)
             if job["command"] == "join":
+                maximum = payload.get("options", {}).get("max_session_seconds", 5400)
+                session_deadline = self.store.set_deadline(job["bot_id"], maximum)
+            else:
+                session_deadline = next((row["deadline"] for row in self.store.reserved_sessions()
+                                         if row["id"] == job["bot_id"]), None)
+            self.cancellation = OperationCancellation(self, session_deadline)
+            if job["command"] != "leave" and self.cancellation.is_set():
+                raise RuntimeErrorCode(self.cancellation.reason())
+            if job["command"] == "join":
                 self.runtime.start(job["bot_id"], payload["meeting"])
                 timeout = min(payload.get("options", {}).get("waiting_room_timeout_seconds", 900),
-                              payload.get("options", {}).get("max_session_seconds", 5400))
+                              max(0, session_deadline - time.time()))
                 self.wait_status(job, lambda state: state.get("in_meeting") is True, timeout)
                 self.store.finish(job["id"], self.worker_id, succeeded=True, session_state="active")
             elif job["command"] == "leave":
@@ -79,9 +113,11 @@ class Agent:
                 if current.get("playback_state") == "failed":
                     self.runtime.command(job["bot_id"], "stop", job["id"], playback_id=current.get("playback_id"))
                 self.release_media(job["bot_id"])
-                resource = self.media_resolver.resolve(media, cancel=self.stopping) if hasattr(self.media_resolver, "resolve") else self.media_resolver(media)
+                resource = self.media_resolver.resolve(media, cancel=self.cancellation) if hasattr(self.media_resolver, "resolve") else self.media_resolver(media)
                 self.media_resources[job["bot_id"]] = resource
                 play_resource_acquired = True
+                if self.cancellation.is_set():
+                    raise RuntimeErrorCode(self.cancellation.reason())
                 path = resource.path if hasattr(resource, "path") else resource
                 playback_id = str(uuid.uuid4())
                 kind = media["type"]
@@ -139,7 +175,59 @@ class Agent:
                               session_state="failed" if terminal else None, cleanup_confirmed=cleanup)
         return True
 
+    def end_supervised(self, session, code):
+        cleaned = False
+        try:
+            # A lost in-memory owner is not proof that old decoders disappeared.
+            if getattr(self.runtime, "bot_id", None) != session["id"]:
+                raise RuntimeErrorCode("RUNTIME_NOT_FOUND")
+            cleaned = self.runtime.cleanup(session["id"]) is True
+            if cleaned:
+                self.release_media(session["id"])
+        except Exception:
+            pass
+        self.store.end_session(session["id"], code, cleanup_confirmed=cleaned)
+
+    def supervise(self):
+        """Run between jobs on the SDK-owning thread; heartbeat has its own thread."""
+        for session in self.store.reserved_sessions():
+            if session["state"] == "accepted":
+                continue
+            bot = session["id"]
+            if session["deadline"] is not None and time.time() >= session["deadline"]:
+                self.end_supervised(session, "SESSION_TIMEOUT")
+                continue
+            if session["state"] == "failed":
+                self.end_supervised(session, "SDK_CLEANUP_UNCONFIRMED")
+                continue
+            try:
+                state = self.runtime.status(bot)
+                self.store.snapshot(bot, state)
+                self.unresponsive_since.pop(bot, None)
+                status = state.get("meeting_status")
+                if status in {0, 6, 7}:
+                    self.end_supervised(session, "MEETING_ENDED")
+                elif status == 5:
+                    since = self.reconnecting_since.setdefault(bot, time.monotonic())
+                    if time.monotonic() - since >= 120:
+                        self.end_supervised(session, "RECONNECT_TIMEOUT")
+                else:
+                    self.reconnecting_since.pop(bot, None)
+            except RuntimeErrorCode as error:
+                if str(error) == "SDK_PROCESS_EXITED":
+                    self.end_supervised(session, "SDK_PROCESS_EXITED")
+                else:
+                    self.end_supervised(session, "SDK_STATE_UNAVAILABLE")
+            except (OSError, ControlError):
+                since = self.unresponsive_since.setdefault(bot, time.monotonic())
+                if time.monotonic() - since >= 15:
+                    self.end_supervised(session, "SDK_UNRESPONSIVE")
+
     def run(self):
+        next_supervision = 0
         while not self.stopping.is_set():
+            if time.monotonic() >= next_supervision:
+                self.supervise()
+                next_supervision = time.monotonic() + 1
             if not self.run_once():
                 self.stopping.wait(0.2)

@@ -6,8 +6,8 @@ import json
 import os
 from pathlib import Path
 import shutil
-import signal
 import subprocess
+import sys
 import time
 from .sdk_control import SdkControl, ControlError
 
@@ -50,6 +50,7 @@ class SdkRuntime:
         self.bot_id = None
         self.directory = None
         self.control = None
+        self.token = None
 
     def start(self, bot_id, meeting):
         import uuid
@@ -71,16 +72,33 @@ class SdkRuntime:
                 file.write(config)
             environment = dict(os.environ, ZOOM_CONFIG_PATH=str(directory / "config.txt"), ZOOM_CONTROL_SOCKET=str(socket_path))
             # SDK diagnostics stay private; public errors use fixed codes.
-            descriptor = os.open(directory / "sdk.log", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             self.directory, self.bot_id = directory, bot_id
             self.control = SdkControl(str(socket_path), timeout=5)
+            # Persist ownership before launch, including the Popen/manifest crash window.
+            self.token = str(uuid.uuid4())
+            descriptor_manifest = os.open(directory / "launch.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor_manifest, "w") as manifest:
+                from .recovery import RuntimeRecovery
+                json.dump(dict(RuntimeRecovery.identity(), token=self.token), manifest)
+                manifest.flush()
+                os.fsync(manifest.fileno())
+            for path in (directory, self.root):
+                durable = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    os.fsync(durable)
+                finally:
+                    os.close(durable)
+            environment["ZOOM_RUNTIME_TOKEN"] = self.token
+            descriptor = os.open(directory / "sdk.log", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, "wb") as log:
-                self.process = subprocess.Popen([str(self.executable)], cwd=self.executable.parent, env=environment,
+                self.process = subprocess.Popen([sys.executable, str(Path(__file__).with_name("sdk_launcher.py")),
+                                            str(os.getpid()), str(self.executable)], cwd=self.executable.parent, env=environment,
                                            stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
         except BaseException:
             if self.process is None:
                 shutil.rmtree(directory)
                 self.directory = self.control = self.bot_id = None
+                self.token = None
             raise
 
     def status(self, bot_id):
@@ -97,16 +115,6 @@ class SdkRuntime:
         if not self.process or self.bot_id != bot_id:
             raise RuntimeErrorCode("RUNTIME_NOT_FOUND")
 
-    def group_alive(self):
-        if not self.process:
-            return False
-        self.process.poll()  # Reap the leader before testing its process group.
-        try:
-            os.killpg(self.process.pid, 0)
-            return True
-        except ProcessLookupError:
-            return False
-
     def stop(self, bot_id):
         self.check_owner(bot_id)
         if self.process.poll() is None:
@@ -118,23 +126,14 @@ class SdkRuntime:
                 self.process.wait(timeout=20)
             except subprocess.TimeoutExpired:
                 pass
-        for sig in [signal.SIGTERM, signal.SIGKILL]:
-            if not self.group_alive():
-                break
-            try:
-                os.killpg(self.process.pid, sig)
-            except ProcessLookupError:
-                break
-            try:
-                self.process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                continue
-        if self.group_alive():
-            raise RuntimeErrorCode("SDK_CLEANUP_UNCONFIRMED")
+        from .recovery import RuntimeRecovery
+        RuntimeRecovery.terminate(self.token)
+        self.process.wait(timeout=3)
         # Only the directory created by start; never remove the configured root.
         if self.directory and self.directory.parent == self.root:
             shutil.rmtree(self.directory)
         self.process = self.control = self.directory = self.bot_id = None
+        self.token = None
         return True
 
     def cleanup(self, bot_id):
