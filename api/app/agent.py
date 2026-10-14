@@ -135,6 +135,8 @@ class Agent:
                 if self.cancellation.is_set():
                     raise RuntimeErrorCode(self.cancellation.reason())
                 path = resource.path if hasattr(resource, "path") else resource
+                if hasattr(self.runtime, "media_path"):
+                    path = self.runtime.media_path(path)
                 playback_id = job["playback_id"]
                 kind = media["type"]
                 sdk_type = "video-silent" if kind == "video" and media.get("audio_enabled", True) is False else kind

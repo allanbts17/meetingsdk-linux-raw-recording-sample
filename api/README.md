@@ -148,7 +148,9 @@ Pause/resume comprueban estado aplicado; un timeout IPC se reconcilia sin reenvi
 
 Validación Pydantic estricta por tipo, campos desconocidos rechazados, allowlist Storage, JSON/cuerpo limitado a 64 KiB, UUIDs, claves 16–128 caracteres alfanuméricos/guion/guion bajo, Cache-Control no-store y X-Request-ID. Errores no incluyen valores recibidos ni excepciones privadas; logs de acceso Uvicorn desactivados. Rate limit persistente por propietario: 60 peticiones/minuto, 10 mutaciones/minuto, hasta 5 mutaciones en un segundo. Esta ráfaga usa ventana móvil de un segundo.
 
-Consulta de listas con cursor de fecha+ID ligado al propietario/filtro; eventos ordenados con posición/IDs y transiciones agregadas. Valores no expuestos por IPC, incluidos permisos/capacidades de salida, permanecen null. La retención automática y las políticas del anfitrión/red todavía requieren implementación/pruebas.
+Consulta de listas con cursor de fecha+ID ligado al propietario/filtro; eventos ordenados con posición/IDs y transiciones agregadas. Valores no expuestos por IPC, incluidos permisos/capacidades de salida, permanecen null. Las políticas del anfitrión/red todavía requieren implementación/pruebas.
+
+Actualización de infraestructura: retención automática implementada cada hora en lotes de25 sesiones confirmadas como terminadas, preservando operaciones pendientes, actividad reciente y claves vigentes. El despliegue monta caché de solo lectura en /sdk-media para las rutas entregadas al SDK, conservando escritura de caché por el worker en /state/media; se verifica que ambas rutas sean el mismo archivo. Scripts de supervisión/recuperación del host en deploy/. Las políticas del anfitrión/red siguen pendientes.
 
 Construcción de la imagen independiente para Cloud Run, sin SDK ni medios y con usuario no privilegiado:
 

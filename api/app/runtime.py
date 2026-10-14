@@ -40,7 +40,7 @@ def configuration(meeting, credentials):
 
 
 class SdkRuntime:
-    def __init__(self, root, credentials_provider, executable="/app/demo/bin/meetingSDKDemo"):
+    def __init__(self, root, credentials_provider, executable="/app/demo/bin/meetingSDKDemo", *, media_root=None, read_only_media_root=None):
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.root.chmod(0o700)
@@ -51,6 +51,22 @@ class SdkRuntime:
         self.directory = None
         self.control = None
         self.token = None
+        self.media_root = Path(media_root).resolve() if media_root else None
+        self.read_only_media_root = Path(read_only_media_root).resolve() if read_only_media_root else None
+
+    def media_path(self, path):
+        path = Path(path).resolve()
+        if self.read_only_media_root is None:
+            return path
+        try:
+            if self.media_root is None or path.parent != self.media_root:
+                raise ValueError()
+            target = self.read_only_media_root / path.name
+            if target.is_symlink() or not target.is_file() or not path.samefile(target):
+                raise ValueError()
+            return target
+        except (ValueError, OSError):
+            raise RuntimeErrorCode("MEDIA_MOUNT_MISMATCH") from None
 
     def start(self, bot_id, meeting):
         import uuid

@@ -200,7 +200,8 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Verificar mediante pruebas HTTP que dos instancias de API recuperan la misma operación y conservan el estado del agente.
 - [ ] Verificar IAM/Invokers y documentación protegida en la URL real de Cloud Run.
 - [ ] Verificar comportamiento al escalar y reiniciar instancias desplegadas mientras el bot real sigue conectado.
-- [ ] Completar retención automática de historial de 30 días y pruebas de políticas del anfitrión/red pendientes.
+- [x] Completar retención automática de historial de 30 días sin borrar sesiones activas, reservas inciertas ni idempotencia vigente.
+- [ ] Completar pruebas de políticas del anfitrión/red pendientes.
 
 ## 14. Infraestructura y despliegue
 
@@ -210,6 +211,7 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [ ] Limitar firewall del agente al origen de Cloud Run y autenticar la comunicación interna.
 - [ ] Desplegar agente/worker con volumen persistente y supervisión al arrancar la VM.
 - [ ] Confirmar desde el host la finalización del contenedor anterior antes de reconciliar directorios de otro namespace PID.
+- [x] Implementar scripts y unidades systemd para comprobar contenedor/namespace anteriores, recuperar y supervisar heartbeat.
 - [ ] Desplegar API Cloud Run con URL HTTPS run.app, autenticación y escalado configurados.
 - [ ] Configurar logs, métricas, alertas de fallos y control de costos.
 

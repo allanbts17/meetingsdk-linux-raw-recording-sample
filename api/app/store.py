@@ -66,6 +66,9 @@ class Store:
                 CREATE TABLE IF NOT EXISTS event_details (
                     sequence INTEGER PRIMARY KEY REFERENCES events(sequence), body TEXT NOT NULL
                 );
+                CREATE INDEX IF NOT EXISTS operations_bot_state ON operations(bot_id,status,created);
+                CREATE INDEX IF NOT EXISTS events_bot_time ON events(bot_id,created);
+                CREATE INDEX IF NOT EXISTS idempotency_bot_expiry ON idempotency(bot_id,expires);
             """)
         Path(self.path).chmod(0o600)
 
@@ -363,6 +366,27 @@ class Store:
         with self.connection() as db:
             occupied = db.execute("SELECT COUNT(*) FROM sessions WHERE reserves=1").fetchone()[0]
             return {"limit": 1, "occupied": occupied, "available": 1 - occupied}
+
+    def prune_history(self, *, retention_seconds=30 * 86400, now=None):
+        """Bounded transaction; never delete capacity, unfinished work or live replay keys."""
+        now = time.time() if now is None else now
+        cutoff = now - retention_seconds
+        with self.transaction() as db:
+            rows = db.execute("""SELECT s.id FROM sessions s WHERE s.reserves=0 AND s.state IN ('ended','failed')
+                AND s.created<? AND NOT EXISTS (SELECT 1 FROM operations o LEFT JOIN operation_details d ON d.operation_id=o.id
+                    WHERE o.bot_id=s.id AND (o.status IN ('queued','running') OR COALESCE(d.completed,o.created)>=?))
+                AND NOT EXISTS (SELECT 1 FROM events e WHERE e.bot_id=s.id AND e.created>=?)
+                AND NOT EXISTS (SELECT 1 FROM idempotency i WHERE i.bot_id=s.id AND i.expires>?) LIMIT 25""",
+                (cutoff, cutoff, cutoff, now)).fetchall()
+            for row in rows:
+                bot = row['id']
+                db.execute("DELETE FROM cancellations WHERE operation_id IN (SELECT id FROM operations WHERE bot_id=?)", (bot,))
+                db.execute("DELETE FROM operation_details WHERE operation_id IN (SELECT id FROM operations WHERE bot_id=?)", (bot,))
+                db.execute("DELETE FROM event_details WHERE sequence IN (SELECT sequence FROM events WHERE bot_id=?)", (bot,))
+                for table in ('idempotency', 'events', 'session_details', 'session_limits', 'snapshots', 'reconciling', 'operations'):
+                    db.execute(f"DELETE FROM {table} WHERE bot_id=?", (bot,))
+                db.execute("DELETE FROM sessions WHERE id=?", (bot,))
+            return len(rows)
 
     def reconcile_restart(self, *, cleanup_confirmed=False):
         """Called by the supervisor after inspecting old processes; never auto-rejoin."""

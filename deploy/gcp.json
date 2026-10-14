@@ -1,0 +1,14 @@
+{
+  "project": "zoom-app-dev",
+  "region": "us-central1",
+  "zone": "us-central1-a",
+  "vm": "zoom-bot-vm",
+  "agent_internal_ip": "10.128.0.2",
+  "network": "default",
+  "cloud_run_subnet": "zoom-bot-run",
+  "cloud_run_cidr": "10.42.0.0/26",
+  "cloud_run_service": "zoom-bot-api",
+  "api_identity": "zoom-bot-api@zoom-app-dev.iam.gserviceaccount.com",
+  "agent_identity": "zoom-bot-agent@zoom-app-dev.iam.gserviceaccount.com",
+  "consumer_identity": "722146628233-compute@developer.gserviceaccount.com"
+}

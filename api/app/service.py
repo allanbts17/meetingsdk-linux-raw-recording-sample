@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import threading
+import time
 from .agent import Agent
 from .media import MediaCache
 from .payloads import PayloadCipher
@@ -52,7 +53,8 @@ class AgentService:
             self.store.reconcile_restart(cleanup_confirmed=True)
             cache = MediaCache(self.root / "media")
             cache.reconcile_pins(cleanup_confirmed=True)
-            runtime = SdkRuntime(self.root / "r", provider.credentials)
+            runtime = SdkRuntime(self.root / "r", provider.credentials, media_root=self.root / "media",
+                                 read_only_media_root=os.environ.get("ZOOM_SDK_MEDIA_ROOT"))
             self.agent = Agent(self.store, PayloadCipher(key), runtime, cache)
             self.store.heartbeat(self.agent.worker_id)
         except BaseException:
@@ -62,9 +64,13 @@ class AgentService:
             raise
 
     def heartbeat(self):
+        next_maintenance = 0
         try:
             while not self.heartbeat_stop.is_set():
                 self.store.heartbeat(self.agent.worker_id, ready=not self.agent.stopping.is_set())
+                if time.monotonic() >= next_maintenance:
+                    self.store.prune_history()
+                    next_maintenance = time.monotonic() + 3600
                 self.heartbeat_stop.wait(self.heartbeat_interval)
         except Exception:
             # A worker unable to persist its heartbeat stops accepting/executing work.

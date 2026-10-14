@@ -5,6 +5,7 @@ import os
 import re
 from pathlib import Path
 import signal
+import socket
 import shutil
 import time
 import uuid
@@ -31,7 +32,7 @@ class RuntimeRecovery:
     @staticmethod
     def identity():
         return {"boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
-                "pid_namespace": os.readlink("/proc/self/ns/pid")}
+                "pid_namespace": os.readlink("/proc/self/ns/pid"), "container_id": socket.gethostname()}
 
     @staticmethod
     def tagged(token):

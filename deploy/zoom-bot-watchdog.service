@@ -1,0 +1,8 @@
+[Unit]
+Description=Zoom bot health watchdog
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/zoom-bot/bin/watchdog.py
+TimeoutStartSec=130

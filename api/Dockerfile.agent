@@ -8,4 +8,5 @@ COPY app/ ./app/
 COPY tools/ ./tools/
 RUN sed -i 's/\r$//' tools/run-agent.sh && chmod +x tools/run-agent.sh
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 CMD ["python3", "-m", "tools.agent_health"]
 CMD ["/opt/agent/tools/run-agent.sh"]

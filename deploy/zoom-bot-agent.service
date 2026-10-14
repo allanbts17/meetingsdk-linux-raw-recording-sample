@@ -1,0 +1,20 @@
+[Unit]
+Description=Zoom bot private agent
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/opt/zoom-bot/bin/run-agent.sh
+ExecStop=/opt/zoom-bot/bin/run-agent.sh stop
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=0
+TimeoutStopSec=90
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

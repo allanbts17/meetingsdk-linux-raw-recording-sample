@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Zoom bot worker heartbeat
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30s
+Unit=zoom-bot-watchdog.service
+
+[Install]
+WantedBy=timers.target
