@@ -132,6 +132,8 @@ La recuperación registra boot ID y namespace PID. Si un contenedor nuevo conser
 
 ## API HTTP y cancelaciones
 
+Swagger y guía práctica: [probar-api.md](../docs/probar-api.md). Para verlo y ejecutar solicitudes autenticadas desde el navegador, usar `./scripts/open-swagger.ps1` desde la raíz y abrir http://localhost:8085/docs. La API desplegada permanece protegida por IAM.
+
 `app.public_http` es el proxy stateless para Cloud Run; `app.private_http` es el servidor del agente. Ambos exponen POST/GET /v1/bots, GET/DELETE /v1/bots/{bot_id}, play/pause/resume/stop, operations, events, capacity y health, además de docs/OpenAPI. El contrato detallado está en docs/api-propuesta.md.
 
 La API pública usa IAM de Cloud Run: desplegar como el nuevo servicio zoom-bot-api, autenticado, y conceder Invoker al consumidor confirmado 722146628233-compute@developer.gserviceaccount.com (servicio actual api). No reemplazar ese servicio api. El factory exige K_SERVICE y configuración de propietario; las pruebas del proxy en memoria no prueban IAM. No publicar la imagen pública como un servidor sin IAM: Google valida las invocaciones delante del contenedor. No se interpreta el token cuya firma Google puede retirar, ni se acepta un propietario suministrado por el cliente.

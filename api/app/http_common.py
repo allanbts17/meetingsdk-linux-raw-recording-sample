@@ -8,6 +8,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 from .models import JoinRequest, PlayRequest, ControlRequest
+from .openapi_docs import enrich_openapi
 
 
 class ApiError(RuntimeError):
@@ -82,8 +83,7 @@ def create_http_app(backend, authenticate, *, lifespan=None, title="Zoom bot API
             value = get_openapi(title=title, version="1.0.0", routes=app.routes)
             value.setdefault("components", {}).setdefault("securitySchemes", {})["BearerAuth"] = {"type": "http", "scheme": "bearer"}
             value["security"] = [{"BearerAuth": []}]
-            value["paths"]["/health/live"]["get"]["security"] = []
-            app.openapi_schema = value
+            app.openapi_schema = enrich_openapi(value)
         return app.openapi_schema
     app.openapi = schema
 
@@ -184,6 +184,8 @@ def create_http_app(backend, authenticate, *, lifespan=None, title="Zoom bot API
 
     @app.get("/docs", dependencies=[Depends(authenticated)], include_in_schema=False)
     async def docs():
-        return get_swagger_ui_html(openapi_url="/openapi.json", title=title)
+        return get_swagger_ui_html(openapi_url="/openapi.json", title=title,
+            swagger_ui_parameters={"defaultModelsExpandDepth": 0, "docExpansion": "list",
+                                   "persistAuthorization": False, "displayRequestDuration": True})
 
     return app

@@ -1,10 +1,16 @@
-param([string]$GcloudBin = 'C:\Users\allan\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin')
+param(
+    [string]$GcloudBin = 'C:\Users\allan\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin',
+    [ValidateSet('all', 'api', 'agent')][string]$Component = 'all'
+)
 $ErrorActionPreference = 'Stop'
 function Invoke-Docker([string[]]$Arguments) {
     & docker @Arguments
     if ($LASTEXITCODE -ne 0) { throw 'DOCKER_OPERATION_FAILED' }
 }
-if (git status --porcelain) { throw 'COMMIT_CHANGES_BEFORE_PUBLISHING' }
+if ($Component -eq 'api') {
+    # Public image copies only api/: unrelated pending native changes are not built.
+    if (git status --porcelain -- api) { throw 'COMMIT_API_CHANGES_BEFORE_PUBLISHING' }
+} elseif (git status --porcelain) { throw 'COMMIT_CHANGES_BEFORE_PUBLISHING' }
 $revision = (git rev-parse --short=12 HEAD).Trim()
 $endpoint = (docker context inspect --format '{{.Endpoints.docker.Host}}').Trim()
 if ($LASTEXITCODE -ne 0 -or -not $endpoint.StartsWith('npipe://')) { throw 'UNEXPECTED_DOCKER_ENDPOINT' }
@@ -26,10 +32,11 @@ try {
     $env:DOCKER_CONFIG = $temporary
     $env:DOCKER_HOST = $endpoint
     # Builds use the already verified SDK base, without publishing local config/media.
-    Invoke-Docker @('build','-t','zoom-agent:dev','-f','api/Dockerfile.agent','api')
-    Invoke-Docker @('build','-t','zoom-api:dev','-f','api/Dockerfile','api')
+    $components = if ($Component -eq 'all') { @('agent', 'api') } else { @($Component) }
+    if ($components -contains 'agent') { Invoke-Docker @('build','-t','zoom-agent:dev','-f','api/Dockerfile.agent','api') }
+    if ($components -contains 'api') { Invoke-Docker @('build','-t','zoom-api:dev','-f','api/Dockerfile','api') }
     $images = @{}
-    foreach ($component in @('agent','api')) {
+    foreach ($component in $components) {
         $repository = 'us-central1-docker.pkg.dev/zoom-app-dev/zoom-bot/' + $component
         $tag = $repository + ':rev-' + $revision
         Invoke-Docker @('tag', ('zoom-' + $component + ':dev'), $tag)
