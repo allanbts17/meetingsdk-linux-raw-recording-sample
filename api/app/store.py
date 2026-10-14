@@ -203,6 +203,8 @@ class Store:
                 state = json.loads(snapshot["body"]) if snapshot else {}
                 if state.get("meeting_status") == 5:
                     raise StoreError("PLAYBACK_BLOCKED")
+                if command == "resume" and any(reason != "user" for reason in state.get("pause_reasons", [])):
+                    raise StoreError("PLAYBACK_BLOCKED")
                 if state.get("playback_id") != captured or state.get("playback_state") not in {"playing", "paused"}:
                     raise StoreError("INVALID_STATE")
             for row in pending:
@@ -435,7 +437,7 @@ class Store:
 
     def snapshot(self, bot_id, state):
         allowed = {"playback_id", "playback_state", "position_seconds", "video_frames_sent",
-                   "audio_blocks_sent", "meeting_status", "in_meeting", "shutdown_requested"}
+                   "audio_blocks_sent", "meeting_status", "in_meeting", "shutdown_requested", "pause_reasons"}
         safe = {key: value for key, value in state.items() if key in allowed}
         body = json.dumps(safe, allow_nan=False)
         with self.transaction() as db:
@@ -443,7 +445,7 @@ class Store:
             previous = json.loads(old["body"]) if old else {}
             db.execute("INSERT OR REPLACE INTO snapshots VALUES (?,?,?)", (bot_id, body, time.time()))
             db.execute("DELETE FROM reconciling WHERE bot_id=?", (bot_id,))
-            if safe.get("playback_id") and (safe.get("playback_state"), safe.get("playback_id")) != (previous.get("playback_state"), previous.get("playback_id")):
+            if safe.get("playback_id") and (safe.get("playback_state"), safe.get("playback_id"), safe.get("pause_reasons")) != (previous.get("playback_state"), previous.get("playback_id"), previous.get("pause_reasons")):
                 self.event(db, bot_id, "playback", safe.get("playback_state", "idle"), safe)
             if safe.get("meeting_status") != previous.get("meeting_status"):
                 statuses = {0: "idle", 1: "joining", 2: "waiting_room", 3: "joined", 4: "leaving", 5: "reconnecting", 6: "failed", 7: "ended", 11: "waiting_room"}

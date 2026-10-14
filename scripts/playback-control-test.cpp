@@ -77,5 +77,31 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     stoppedA.Stop();
     assert(stoppedA.IsCompleted() && senderA.count == finalA + 200);
-    std::cout << "Controls passed: pause freezes both tracks, resume preserves all media, stop during pause cannot restart." << std::endl;
+    auto external = std::make_shared<PlaybackClock>(true, true);
+    stoppedV.SetMedia("/tmp/av-test.mkv", external);
+    stoppedA.SetMedia("/tmp/av-test.mkv", external);
+    stoppedV.onStartSend(); stoppedA.onMicStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
+    stoppedA.onMicStopSend();
+    const int mutedV = senderV.count, mutedA = senderA.count;
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    assert(external->State() == "paused" && !external->Resume());
+    assert(senderV.count == mutedV && senderA.count == mutedA);
+    external->Pause(); // A manual pause must survive restored SDK availability.
+    stoppedA.onMicStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    assert(external->PauseReasons() == std::vector<std::string>{"user"});
+    assert(senderV.count == mutedV && senderA.count == mutedA);
+    assert(external->Resume());
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    stoppedV.Stop(); stoppedA.Stop();
+    assert(stoppedV.IsCompleted() && stoppedA.IsCompleted());
+    auto camera = std::make_shared<PlaybackClock>(true, false);
+    stoppedV.SetMedia("/tmp/video-only.mp4", camera); stoppedV.onStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(450)); stoppedV.onStopSend();
+    assert(camera->State() == "paused" && !camera->Resume());
+    stoppedV.onStartSend();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500)); stoppedV.Stop();
+    assert(stoppedV.IsCompleted() && camera->PauseReasons().empty());
+    std::cout << "Controls passed: coordinated pause, external audio/video blocks, manual pause survives restoration, stop cannot restart." << std::endl;
 }

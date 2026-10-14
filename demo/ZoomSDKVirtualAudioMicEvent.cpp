@@ -35,8 +35,11 @@ void ZoomSDKVirtualAudioMicEvent::onMicStartSend() {
     if (prepareAudio_) prepareAudio_();
     stop_ = false; worker_ = std::thread(&ZoomSDKVirtualAudioMicEvent::Play, this);
 }
-void ZoomSDKVirtualAudioMicEvent::onMicStopSend() { Stop(); }
-void ZoomSDKVirtualAudioMicEvent::onMicUninitialized() { Stop(); sender_ = nullptr; }
+void ZoomSDKVirtualAudioMicEvent::onMicStopSend() {
+    if (!completed_) clock_->Pause("audio_unavailable");
+    Stop();
+}
+void ZoomSDKVirtualAudioMicEvent::onMicUninitialized() { onMicStopSend(); sender_ = nullptr; }
 
 void ZoomSDKVirtualAudioMicEvent::Play() {
     int descriptors[2];

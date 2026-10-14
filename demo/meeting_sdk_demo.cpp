@@ -878,6 +878,11 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 
 gboolean timeout_callback(gpointer data)
 {
+	if (!shutdown_requested && playback_clock && m_pMeetingService) {
+		const auto status = m_pMeetingService->GetMeetingStatus();
+		if (status == MEETING_STATUS_RECONNECTING) playback_clock->Pause("network_unavailable");
+		else if (status == MEETING_STATUS_INMEETING) playback_clock->RemoveReason("network_unavailable");
+	}
 	if (!shutdown_requested && virtual_microphone_source && virtual_microphone_source->IsSending() &&
 		!music_audio_configured && music_audio_attempts++ < 5) ConfigureMusicAudio();
 	if (!shutdown_requested && SendAudioRawData && virtual_microphone_source && m_pMeetingService &&
@@ -1037,13 +1042,16 @@ JsonObject* HandleControl(JsonObject* request) {
 	else if (command == "stop") StopPlayback();
 	else if (PlaybackState() == "finished" || PlaybackState() == "stopped") error = "PLAYBACK_NOT_ACTIVE";
 	else if (command == "pause") playback_clock->Pause();
-	else if (command == "resume") playback_clock->Resume();
+	else if (command == "resume" && !playback_clock->Resume()) error = "PLAYBACK_BLOCKED";
 	json_object_set_int_member(response, "version", 1);
 	json_object_set_string_member(response, "operation_id", operation.c_str());
 	json_object_set_boolean_member(response, "ok", error.empty());
 	if (!error.empty()) json_object_set_string_member(response, "error", error.c_str());
 	json_object_set_string_member(response, "playback_id", current_playback_id.c_str());
 	json_object_set_string_member(response, "playback_state", PlaybackState().c_str());
+	auto reasons = json_array_new();
+	if (playback_clock) for (const auto& reason : playback_clock->PauseReasons()) json_array_add_string_element(reasons, reason.c_str());
+	json_object_set_array_member(response, "pause_reasons", reasons);
 	double position = 0;
 	if (SendVideoRawData && virtual_camera_source) position = virtual_camera_source->Position();
 	if (SendAudioRawData && virtual_microphone_source) position = SendVideoRawData ? std::min(position, virtual_microphone_source->Position()) : virtual_microphone_source->Position();

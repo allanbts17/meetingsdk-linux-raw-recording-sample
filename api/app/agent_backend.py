@@ -48,9 +48,10 @@ def session_view(data):
                          "position_seconds": position, "duration_seconds": metadata.get("duration_seconds") if metadata.get("type") == "image"
                          else metadata.get("source", {}).get("duration_seconds"),
                          "audio_enabled": metadata.get("audio_enabled", metadata.get("type") == "audio") if play else None,
-                         "pause_reasons": ["user"] if playback_state == "paused" else [],
+                         "pause_reasons": state.get("pause_reasons", ["user"]) if playback_state == "paused" else [],
                          "can_pause": status == "active" and playback_state in {"playing", "paused"},
-                         "can_resume": status == "active" and playback_state in {"playing", "paused"},
+                         "can_resume": status == "active" and playback_state in {"playing", "paused"}
+                         and not any(reason != "user" for reason in state.get("pause_reasons", [])),
                          "can_stop": status in {"active", "reconnecting"} and playback_state != "idle"},
             "media": media, "pending_operation_id": data["pending"]["id"] if data["pending"] else None,
             "resource_released": released, "state_version": data["version"], "created_at": timestamp(session["created"]),

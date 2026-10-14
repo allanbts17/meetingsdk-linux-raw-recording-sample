@@ -84,6 +84,26 @@ class HttpTests(unittest.TestCase):
         finally:
             other.close()
 
+    def test_external_pause_blocks_resume_and_preserves_manual_pause(self):
+        bot = self.join()
+        play = self.mutate("POST", f"/v1/bots/{bot}/play", {"media": {"type": "video", "url": URL}})
+        self.agent.run_once()
+        state = self.runtime.status(bot)
+        state.update(playback_state="paused", pause_reasons=["audio_unavailable", "user"])
+        self.store.snapshot(bot, state)
+        view = self.client.get(f"/v1/bots/{bot}").json()["playback"]
+        self.assertEqual(view["pause_reasons"], ["audio_unavailable", "user"])
+        self.assertFalse(view["can_resume"])
+        response = self.mutate("POST", f"/v1/bots/{bot}/resume")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"]["code"], "PLAYBACK_BLOCKED")
+        state.update(pause_reasons=["user"])
+        self.store.snapshot(bot, state)
+        view = self.client.get(f"/v1/bots/{bot}").json()["playback"]
+        self.assertEqual(view["status"], "paused")
+        self.assertTrue(view["can_resume"])
+        self.assertEqual(self.client.get(play.json()["links"]["operation"]).json()["status"], "succeeded")
+
     def test_validation_discrimination_and_secret_redaction(self):
         secret = "private-value-never-return"
         for body in ({"meeting": {"number": secret}}, {"meeting": {"number": "123456789", "password": secret}, "secret": secret}):

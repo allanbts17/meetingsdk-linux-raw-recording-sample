@@ -49,8 +49,11 @@ void ZoomSDKVideoSource::onStartSend() {
     stop_ = false;
     worker_ = std::thread(&ZoomSDKVideoSource::Play, this);
 }
-void ZoomSDKVideoSource::onStopSend() { Stop(); }
-void ZoomSDKVideoSource::onUninitialized() { Stop(); sender_ = nullptr; }
+void ZoomSDKVideoSource::onStopSend() {
+    if (!completed_) clock_->Pause("video_unavailable");
+    Stop();
+}
+void ZoomSDKVideoSource::onUninitialized() { onStopSend(); sender_ = nullptr; }
 
 void ZoomSDKVideoSource::Play() {
     int descriptors[2];

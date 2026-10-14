@@ -5,6 +5,8 @@
 #include <mutex>
 #include <functional>
 #include <string>
+#include <set>
+#include <vector>
 
 // Both decoded tracks must be ready before the first media deadline is set.
 class PlaybackClock {
@@ -13,6 +15,7 @@ public:
     bool ReadyAndWait(bool audio, const std::atomic<bool>& stopped) {
         std::unique_lock<std::mutex> lock(mutex_);
         (audio ? audioReady_ : videoReady_) = true;
+        RemoveReasonLocked(audio ? "audio_unavailable" : "video_unavailable");
         if (!started_ && videoReady_ && audioReady_) {
             epoch_ = (paused_ ? pausedAt_ : std::chrono::steady_clock::now()) + std::chrono::milliseconds(200);
             started_ = true;
@@ -28,20 +31,39 @@ public:
         return epoch_ + std::chrono::microseconds(static_cast<long long>(seconds * 1000000));
     }
     void Wake() { wake_.notify_all(); }
-    void Pause() {
+    void Pause(const std::string& reason = "user") {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (paused_ || halted_) return;
+        if (halted_) return;
+        reasons_.insert(reason);
+        if (paused_) return;
         paused_ = true; pausedAt_ = std::chrono::steady_clock::now(); wake_.notify_all();
     }
-    void Resume() {
+    bool Resume() {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!paused_ || halted_) return;
+        if (halted_) return false;
+        for (const auto& reason : reasons_) if (reason != "user") return false;
+        RemoveReasonLocked("user");
+        return true;
+    }
+    std::vector<std::string> PauseReasons() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return {reasons_.begin(), reasons_.end()};
+    }
+    void RemoveReason(const std::string& reason) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        RemoveReasonLocked(reason);
+    }
+private:
+    void RemoveReasonLocked(const std::string& reason) {
+        reasons_.erase(reason);
+        if (!paused_ || halted_ || !reasons_.empty()) return;
         if (started_) epoch_ += std::chrono::steady_clock::now() - pausedAt_;
         paused_ = false; wake_.notify_all();
     }
+public:
     void Halt() {
         std::lock_guard<std::mutex> lock(mutex_);
-        halted_ = true; paused_ = false; wake_.notify_all();
+        halted_ = true; paused_ = false; reasons_.clear(); wake_.notify_all();
     }
     bool IsHalted() { std::lock_guard<std::mutex> lock(mutex_); return halted_; }
     std::string State() {
@@ -65,6 +87,7 @@ private:
     std::condition_variable wake_;
     bool videoReady_, audioReady_, started_ = false;
     bool paused_ = false, halted_ = false;
+    std::set<std::string> reasons_;
     std::chrono::steady_clock::time_point pausedAt_;
     std::chrono::steady_clock::time_point epoch_;
 };
