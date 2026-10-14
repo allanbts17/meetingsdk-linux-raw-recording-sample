@@ -10,10 +10,13 @@
 
 class ZoomSDKVideoSource : public ZOOMSDK::IZoomSDKVideoSource {
 public:
-    explicit ZoomSDKVideoSource(std::string source, std::shared_ptr<PlaybackClock> clock = nullptr);
+    explicit ZoomSDKVideoSource(std::string source, std::shared_ptr<PlaybackClock> clock = nullptr, bool image = false, double duration = 0);
     ~ZoomSDKVideoSource() override;
     void Stop();
-    void SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock);
+    void SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock, bool image = false, double duration = 0);
+    double Position() const { return position_.load(); }
+    bool HasFailed() const { return failed_.load(); }
+    unsigned long AcceptedFrames() const { return accepted_.load(); }
     bool IsCompleted() const { return completed_.load(); }
     bool IsSending() const { return !stop_.load(); }
     void onInitialize(ZOOMSDK::IZoomSDKVideoSender*, ZOOMSDK::IList<ZOOMSDK::VideoSourceCapability>*, ZOOMSDK::VideoSourceCapability&) override;
@@ -32,6 +35,10 @@ private:
     std::mutex waitMutex_;
     std::condition_variable wake_;
     unsigned int width_ = 640, height_ = 480, fps_ = 30;
-    double position_ = 0;
+    std::atomic<double> position_{0};
+    bool image_ = false;
+    double duration_ = 0;
     std::atomic<bool> completed_{false};
+    std::atomic<bool> failed_{false};
+    std::atomic<unsigned long> accepted_{0};
 };

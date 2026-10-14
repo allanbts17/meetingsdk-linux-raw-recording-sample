@@ -18,7 +18,7 @@ ZoomSDKVirtualAudioMicEvent::~ZoomSDKVirtualAudioMicEvent() { Stop(); }
 void ZoomSDKVirtualAudioMicEvent::SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock) {
     Stop();
     source_ = std::move(source); clock_ = std::move(clock);
-    position_ = 0; completed_ = false;
+    position_ = 0; completed_ = false; failed_ = false; accepted_ = 0;
 }
 void ZoomSDKVirtualAudioMicEvent::Stop() {
     stop_ = true; clock_->Wake(); wake_.notify_all();
@@ -40,9 +40,9 @@ void ZoomSDKVirtualAudioMicEvent::onMicUninitialized() { Stop(); sender_ = nullp
 
 void ZoomSDKVirtualAudioMicEvent::Play() {
     int descriptors[2];
-    if (pipe2(descriptors, O_CLOEXEC) != 0) { stop_ = true; std::cerr << "Cannot create audio decoder pipe." << std::endl; return; }
+    if (pipe2(descriptors, O_CLOEXEC) != 0) { failed_ = true; stop_ = true; std::cerr << "Cannot create audio decoder pipe." << std::endl; return; }
     std::vector<std::string> args = {"ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-threads", "1",
-        "-ss", std::to_string(position_), "-i", source_, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "48000",
+        "-ss", std::to_string(position_.load()), "-i", source_, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "48000",
         "-acodec", "pcm_s16le", "-f", "s16le", "pipe:1"};
     std::vector<char*> argv;
     for (auto& arg : args) argv.push_back(&arg[0]);
@@ -56,7 +56,7 @@ void ZoomSDKVirtualAudioMicEvent::Play() {
     const int spawned = posix_spawnp(&decoder, "ffmpeg", &actions, nullptr, argv.data(), environ);
     posix_spawn_file_actions_destroy(&actions);
     close(descriptors[1]);
-    if (spawned) { close(descriptors[0]); stop_ = true; std::cerr << "Cannot start audio FFmpeg." << std::endl; return; }
+    if (spawned) { close(descriptors[0]); failed_ = true; stop_ = true; std::cerr << "Cannot start audio FFmpeg." << std::endl; return; }
     // 10 ms of signed 16-bit mono PCM at 48000 Hz; no WAV header.
     std::vector<char> block(960);
     size_t filled = 0, blocks = 0;
@@ -85,17 +85,19 @@ void ZoomSDKVirtualAudioMicEvent::Play() {
             if (!clockReady) { std::cerr << "Audio waiting for media readiness timed out or stopped." << std::endl; break; }
         }
         if (!clock_->Dispatch(initialPosition + blocks * 0.01, stop_, [&](bool late) {
+            position_ = initialPosition + (blocks + 1) * 0.01;
             if (late) return;
             const SDKError result = sender_->send(block.data(), block.size(), 48000, ZoomSDKAudioChannel_Mono);
             if (result != SDKERR_SUCCESS) {
                 if (++errors == 1) std::cerr << "Audio block send failed, SDK error: " << result << std::endl;
             } else {
+                ++accepted_;
                 errors = 0;
                 if (!blocks) std::cout << "First audio block accepted by SDK." << std::endl;
             }
         })) break;
         if (errors >= 100) break;
-        ++blocks; position_ = initialPosition + blocks * 0.01; filled = 0;
+        ++blocks; filled = 0;
         if (eof) break;
     }
     if (!eof) kill(decoder, SIGTERM);
@@ -105,6 +107,6 @@ void ZoomSDKVirtualAudioMicEvent::Play() {
     if (eof && !filled && WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         completed_ = true;
         std::cout << "Audio playback finished; no repeat. Blocks: " << blocks << std::endl;
-    } else if (!stop_ && !clock_->IsHalted()) std::cerr << "Audio decoding/sending ended before completion." << std::endl;
+    } else if (!stop_ && !clock_->IsHalted()) { failed_ = true; std::cerr << "Audio decoding/sending ended before completion." << std::endl; }
     stop_ = true;
 }

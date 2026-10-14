@@ -16,6 +16,7 @@
 #include <iostream>
 #include <map>
 #include <algorithm>
+#include <cmath>
 
 #include "zoom_sdk.h"
 #include "auth_service_interface.h"
@@ -919,6 +920,8 @@ void initAppSettings()
 std::string PlaybackState() {
 	if (!playback_clock) return "idle";
 	if (playback_clock->IsHalted()) return "stopped";
+	if ((SendVideoRawData && virtual_camera_source && virtual_camera_source->HasFailed()) ||
+		(SendAudioRawData && virtual_microphone_source && virtual_microphone_source->HasFailed())) return "failed";
 	const bool finished = (!SendVideoRawData || (virtual_camera_source && virtual_camera_source->IsCompleted())) &&
 		(!SendAudioRawData || (virtual_microphone_source && virtual_microphone_source->IsCompleted()));
 	return finished ? "finished" : playback_clock->State();
@@ -935,15 +938,15 @@ void StopPlayback(bool mute = true) {
 	}
 }
 
-bool StartPlayback(const std::string& path, bool video, bool audio, std::string& error) {
+bool StartPlayback(const std::string& path, bool video, bool audio, std::string& error, bool image = false, double duration = 0) {
 	if (shutdown_requested || !m_pMeetingService || m_pMeetingService->GetMeetingStatus() != MEETING_STATUS_INMEETING) {
 		error = "BOT_NOT_ACTIVE"; return false;
 	}
 	const auto state = PlaybackState();
-	if (state != "idle" && state != "finished" && state != "stopped") {
+	if (state != "idle" && state != "finished" && state != "stopped" && state != "failed") {
 		error = "PLAYBACK_ALREADY_ACTIVE"; return false;
 	}
-	if (!ValidateMedia(path, video, audio, error)) return false;
+	if (!ValidateMedia(path, video, audio, error, image)) return false;
 	StopPlayback(false);
 	if (!video) m_pMeetingService->GetMeetingVideoController()->MuteVideo();
 	if (!audio && getMyself()) m_pMeetingService->GetMeetingAudioController()->MuteAudio(getMyself()->GetUserID(), true);
@@ -954,9 +957,9 @@ bool StartPlayback(const std::string& path, bool video, bool audio, std::string&
 	music_audio_configured = false; music_audio_attempts = 0;
 	SDKError result = SDKERR_SUCCESS;
 	if (video) {
-		if (virtual_camera_source) virtual_camera_source->SetMedia(path, playback_clock);
+		if (virtual_camera_source) virtual_camera_source->SetMedia(path, playback_clock, image, duration);
 		else {
-			virtual_camera_source = new ZoomSDKVideoSource(path, playback_clock);
+			virtual_camera_source = new ZoomSDKVideoSource(path, playback_clock, image, duration);
 		}
 		if (!camera_registered) {
 			const auto helper = GetRawdataVideoSourceHelper();
@@ -1010,9 +1013,20 @@ JsonObject* HandleControl(JsonObject* request) {
 	else if (command == "play") {
 		const auto type = ControlString(request, "media_type");
 		const auto path = ControlString(request, "path");
+		double duration = 0;
+		bool validDuration = true;
+		if (json_object_has_member(request, "duration_seconds")) {
+			const auto node = json_object_get_member(request, "duration_seconds");
+			if (!JSON_NODE_HOLDS_NULL(node)) {
+				const auto valueType = json_node_get_value_type(node);
+				if (type != "image" || (valueType != G_TYPE_DOUBLE && valueType != G_TYPE_INT64)) validDuration = false;
+				else { duration = json_node_get_double(node); validDuration = std::isfinite(duration) && duration >= 1 && duration <= 3600; }
+			}
+		}
 		if (playback.empty() || playback.size() > 128 || path.empty() || path[0] != '/') error = "INVALID_REQUEST";
-		else if (type != "video" && type != "video-silent" && type != "audio") error = "MEDIA_TYPE_UNSUPPORTED";
-		else if (StartPlayback(path, type != "audio", type != "video-silent", error)) current_playback_id = playback;
+		else if (!validDuration) error = "INVALID_DURATION";
+		else if (type != "video" && type != "video-silent" && type != "audio" && type != "image") error = "MEDIA_TYPE_UNSUPPORTED";
+		else if (StartPlayback(path, type != "audio", type == "video" || type == "audio", error, type == "image", duration)) current_playback_id = playback;
 	}
 	else if (command == "quit") requestShutdown(nullptr);
 	else if (command != "pause" && command != "resume" && command != "stop") error = "UNKNOWN_COMMAND";
@@ -1028,6 +1042,13 @@ JsonObject* HandleControl(JsonObject* request) {
 	if (!error.empty()) json_object_set_string_member(response, "error", error.c_str());
 	json_object_set_string_member(response, "playback_id", current_playback_id.c_str());
 	json_object_set_string_member(response, "playback_state", PlaybackState().c_str());
+	double position = 0;
+	if (SendVideoRawData && virtual_camera_source) position = virtual_camera_source->Position();
+	if (SendAudioRawData && virtual_microphone_source) position = SendVideoRawData ? std::min(position, virtual_microphone_source->Position()) : virtual_microphone_source->Position();
+	json_object_set_double_member(response, "position_seconds", position);
+	json_object_set_int_member(response, "video_frames_sent", SendVideoRawData && virtual_camera_source ? virtual_camera_source->AcceptedFrames() : 0);
+	json_object_set_int_member(response, "audio_blocks_sent", SendAudioRawData && virtual_microphone_source ? virtual_microphone_source->AcceptedBlocks() : 0);
+	json_object_set_int_member(response, "meeting_status", m_pMeetingService ? m_pMeetingService->GetMeetingStatus() : MEETING_STATUS_IDLE);
 	json_object_set_boolean_member(response, "in_meeting", m_pMeetingService && m_pMeetingService->GetMeetingStatus() == MEETING_STATUS_INMEETING);
 	json_object_set_boolean_member(response, "shutdown_requested", shutdown_requested);
 	return response;

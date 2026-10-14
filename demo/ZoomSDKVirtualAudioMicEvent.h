@@ -18,6 +18,9 @@ public:
     void SetMedia(std::string source, std::shared_ptr<PlaybackClock> clock);
     bool IsCompleted() const { return completed_.load(); }
     bool IsSending() const { return !stop_.load(); }
+    double Position() const { return position_.load(); }
+    bool HasFailed() const { return failed_.load(); }
+    unsigned long AcceptedBlocks() const { return accepted_.load(); }
     void onMicInitialize(ZOOMSDK::IZoomSDKAudioRawDataSender*) override;
     void onMicStartSend() override;
     void onMicStopSend() override;
@@ -32,6 +35,8 @@ private:
     std::atomic<bool> stop_{true};
     std::mutex waitMutex_;
     std::condition_variable wake_;
-    double position_ = 0;
+    std::atomic<double> position_{0};
     std::atomic<bool> completed_{false};
+    std::atomic<bool> failed_{false};
+    std::atomic<unsigned long> accepted_{0};
 };

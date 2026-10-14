@@ -25,3 +25,7 @@ timeout 20 /tmp/playback-control-test
 g++ -std=c++11 -pthread -I/app/demo $(pkg-config --cflags gio-2.0 json-glib-1.0) \
     "$test_root/sdk-control-server-test.cpp" $(pkg-config --libs gio-2.0 json-glib-1.0) -o /tmp/sdk-control-server-test
 timeout 20 /tmp/sdk-control-server-test
+ffmpeg -v error -f lavfi -i color=c=blue:size=320x240 -frames:v 1 -threads 1 /tmp/image-test.png
+g++ -std=c++11 -pthread -I/app/demo -I/app/demo/include/h \
+    "$test_root/image-source-test.cpp" /app/demo/ZoomSDKVideoSource.cpp -o /tmp/image-source-test
+timeout 20 /tmp/image-source-test

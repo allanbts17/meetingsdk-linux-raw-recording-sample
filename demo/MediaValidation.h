@@ -9,19 +9,28 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+#include <algorithm>
+#include <cctype>
 extern char** environ;
 
 // Probe a regular local file without a shell or network protocols.
-inline bool ValidateMedia(const std::string& source, bool video, bool audio, std::string& error) {
+inline bool ValidateMedia(const std::string& source, bool video, bool audio, std::string& error, bool image = false) {
     struct stat info;
     if (stat(source.c_str(), &info) != 0 || !S_ISREG(info.st_mode)) {
         error = "Media file is missing or is not a regular file. Check the read-only video mount.";
         return false;
     }
+    if (image) {
+        auto suffix = source.substr(source.find_last_of('.') == std::string::npos ? source.size() : source.find_last_of('.'));
+        std::transform(suffix.begin(), suffix.end(), suffix.begin(), [](unsigned char c) { return std::tolower(c); });
+        if ((suffix != ".png" && suffix != ".jpg" && suffix != ".jpeg") || info.st_size > 10 * 1024 * 1024) {
+            error = "Image must be PNG/JPEG and at most 10 MiB."; return false;
+        }
+    }
     int descriptors[2];
     if (pipe2(descriptors, O_CLOEXEC) != 0) { error = "Cannot create media probe pipe."; return false; }
     std::vector<std::string> args = {"ffprobe", "-v", "error", "-protocol_whitelist", "file,pipe",
-        "-show_entries", "stream=codec_type", "-of", "csv=p=0", source};
+        "-show_entries", image ? "stream=codec_name,codec_type" : "stream=codec_type", "-of", "csv=p=0", source};
     std::vector<char*> argv;
     for (auto& arg : args) argv.push_back(&arg[0]);
     argv.push_back(nullptr);
@@ -58,6 +67,9 @@ inline bool ValidateMedia(const std::string& source, bool video, bool audio, std
     }
     if ((video && streams.find("video") == std::string::npos) || (audio && streams.find("audio") == std::string::npos)) {
         error = "Media file lacks an enabled audio/video track. Disable that track or choose another file."; return false;
+    }
+    if (image && streams.compare(0, 4, "png,") != 0 && streams.compare(0, 6, "mjpeg,") != 0) {
+        error = "Image codec must be PNG or JPEG."; return false;
     }
     return true;
 }

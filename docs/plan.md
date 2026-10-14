@@ -158,15 +158,19 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Implementar socket Unix JSON con IDs de operación/reproducción y consulta de estado; cliente Python dentro de /api.
 - [ ] Completar eventos, posición y errores de emisión en IPC y confirmar ejecución de comandos.
 - [x] Implementar play de video después de entrar y nueva reproducción tras stop/EOF, sin reiniciar la sesión.
-- [ ] Implementar audio independiente e imagen estática, con políticas de pistas/duración del contrato.
+- [x] Implementar audio independiente e imagen estática, con políticas de pistas/duración del contrato.
 - [x] Verificar decodificación de audio independiente y video sin audio con fuentes reutilizadas en pruebas automatizadas.
-- [ ] Aplicar pause/resume/stop por playback_id y liberar fuentes previas de forma segura.
+- [x] Aplicar pause/resume/stop por playback_id y liberar fuentes previas de forma segura.
 - [ ] Verificar videos sucesivos, audio, imagen, eventos del anfitrión y desconexión.
+- [x] Confirmar con otro participante imagen estática sin audio y audio independiente con cámara apagada.
 
 ## 12. Agente persistente en GCE
 
 - [ ] Implementar agente Python con SQLite en volumen persistente: sesiones, operaciones, eventos e idempotencia.
-- [ ] Reservar capacidad mediante transacción y rechazar una segunda reunión aun con peticiones concurrentes.
+- [x] Implementar base SQLite para sesiones, operaciones en cola, eventos e idempotencia.
+- [x] Reservar capacidad mediante transacción y rechazar una segunda reunión aun con peticiones concurrentes.
+- [x] Verificar claim exclusivo, recuperación de idempotencia y conservación de capacidad hasta confirmar limpieza.
+- [ ] Cifrar payloads sensibles e integrar la persistencia con el ejecutor del agente.
 - [ ] Registrar trabajos antes de aceptar órdenes y ejecutarlos fuera del ciclo de petición HTTP.
 - [ ] Descargar medios HTTPS de Storage con allowlist, límites, timeouts y validación FFprobe.
 - [ ] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
