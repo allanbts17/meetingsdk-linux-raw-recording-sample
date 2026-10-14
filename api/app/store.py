@@ -132,7 +132,8 @@ class Store:
         with self.transaction() as db:
             if db.execute("SELECT 1 FROM operations WHERE status='running'").fetchone():
                 return None
-            row = db.execute("SELECT * FROM operations WHERE status='queued' ORDER BY created,id LIMIT 1").fetchone()
+            row = db.execute("""SELECT o.*,s.owner FROM operations o JOIN sessions s ON s.id=o.bot_id
+                              WHERE o.status='queued' ORDER BY o.created,o.id LIMIT 1""").fetchone()
             if not row:
                 return None
             db.execute("UPDATE operations SET status='running',claimed_by=? WHERE id=?", (worker_id, row["id"]))

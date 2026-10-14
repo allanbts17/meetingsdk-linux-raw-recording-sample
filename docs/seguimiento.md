@@ -135,3 +135,19 @@ Suite multimedia aprobada: imagen igual en todos los cuadros, duración de un se
 Base `api/app/store.py`: SQLite WAL/transacciones, sesiones, reserva única, operaciones en cola, claim exclusivo, eventos e idempotencia con respuesta persistida antes de devolverla. Trece pruebas Python (cliente IPC + persistencia) pasan en Windows y Linux. Ocho peticiones concurrentes con claves distintas aceptan solo una reunión; misma clave recupera el mismo bot/operación. Failed conserva capacidad hasta limpieza confirmada. Reinicio de supervisor cancela trabajos afectados, purga payload y no reentra; reinicio de API solo debe consultar al agente, sin invocar esa reconciliación.
 
 Esta capa no es aún el agente completo. `sealed_payload` exige bytes y debe cifrarse antes de guardar; pruebas usan datos ficticios. Pendientes cifrado autenticado con Secret Manager, ejecutor y supervisión reales, descargas/caché, heartbeat, cancelación prioritaria, eventos completos del SDK y endpoints HTTP. No aceptar credenciales reales mediante esta capa hasta conectar el cifrado. Ningún dato secreto se registró en estas pruebas/documentos.
+
+## Cifrado y ejecutor conectado al SDK — 2026-10-13
+
+Commit solicitado del avance previo: `134a710`, sin push. El usuario autorizó git add/commit sin confirmación adicional y guardó reglas para ambos prefijos.
+
+Agente bajo /api: valida reuniones y medios discriminados, cifra payloads antes de SQLite y ejecuta trabajos en cola. AES-256-GCM autentica cliente/comando/bot; HKDF separa clave de cifrado y HMAC de fingerprints. Clave maestra no incluida en imagen ni logs; conexión con Secret Manager pendiente. Dependencia Linux verificada: cryptography 50.0.2, fijada en requirements-agent.txt. Windows probó la API compatible con su dependencia preexistente 46.0.3; pruebas de despliegue usan Linux 50.0.2.
+
+SdkRuntime genera JWT fresco y archivos 0600 bajo directorio 0700 por bot. SDK acepta ZOOM_CONFIG_PATH y ZOOM_CONTROL_SOCKET. Proceso en grupo independiente; leave solicita quit, espera y limpia el grupo antes de liberar capacidad y borrar configuración/logs. Store claim incluye propietario para autenticar el contexto del payload. Play espera los contadores requeridos de envíos aceptados por SDK; un timeout de envío se reconcilia con el mismo playback_id, sin repetir play.
+
+Prueba real mediante tools/agent_demo.py e imagen zoom-agent:dev: join → play → leave administrados por el agente. Usuario confirma video_habla.mp4 y voz sincronizados. Eventos agent.joined, agent.playing y agent.ended; capacidad disponible=1 y salida del contenedor 0. Se usó config/local.json montado readonly, clave/base temporales y resolver local exclusivo de la prueba. No se descargó el medio desde Storage ni se desplegó en GCE/Cloud Run.
+
+Pruebas cubren cifrado/contexto alterado, reintento idempotente, payloads sensibles ausentes de ciphertext, ACK anterior al primer envío, timeout sin play duplicado, controles de intento anterior y errores privados saneados. Nuevas validaciones rechazan número inválido, credenciales extra en petición, campos incompatibles por tipo y duración booleana antes de encolar.
+
+Resultado final: 26 pruebas Python aprobadas dentro de la imagen Linux del agente con cryptography 50.0.2; build SDK/agente y git diff --check aprobados. La prueba real finalizó por sí misma sin participantes/procesos activos de prueba.
+
+Pendientes del agente: descarga/validación/caché de Storage, Secret Manager, heartbeat y recuperación de procesos tras reinicio, límites completos de sesión y cancelación prioritaria. HTTP también pendiente. La prueba temporal no es la configuración de producción.

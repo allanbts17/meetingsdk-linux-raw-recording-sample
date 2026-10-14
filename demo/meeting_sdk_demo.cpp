@@ -384,9 +384,11 @@ void processLine(const std::string& line, std::map<std::string, std::string>& co
 void ReadTEXTSettings()
 {
 	
+	const auto explicit_config = getenv("ZOOM_CONFIG_PATH");
 	std::string self_dir = getSelfDirPath();
 	printf("self path: %s\n", self_dir.c_str());
 	self_dir.append("/config.txt");
+	if (explicit_config && explicit_config[0]) self_dir = explicit_config;
 
 	std::ifstream configFile(self_dir.c_str());
 	if (!configFile) {
@@ -1124,7 +1126,8 @@ int main(int argc, char* argv[])
 	AuthMeetingSDK();
 	initAppSettings();
 	initPlaybackControl();
-	SdkControlServer control_server("/tmp/zoom-sdk-control.sock", HandleControl);
+	const auto control_path = getenv("ZOOM_CONTROL_SOCKET");
+	SdkControlServer control_server(control_path && control_path[0] ? control_path : "/tmp/zoom-sdk-control.sock", HandleControl);
 	if (!control_server.Start()) {
 		std::cerr << "Cannot start private SDK control socket." << std::endl;
 		app_exit_code = 1;

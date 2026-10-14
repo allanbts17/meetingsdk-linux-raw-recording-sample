@@ -170,8 +170,9 @@ Resultado esperado: clip con voz e imagen sincronizadas durante una prueba de al
 - [x] Implementar base SQLite para sesiones, operaciones en cola, eventos e idempotencia.
 - [x] Reservar capacidad mediante transacción y rechazar una segunda reunión aun con peticiones concurrentes.
 - [x] Verificar claim exclusivo, recuperación de idempotencia y conservación de capacidad hasta confirmar limpieza.
-- [ ] Cifrar payloads sensibles e integrar la persistencia con el ejecutor del agente.
-- [ ] Registrar trabajos antes de aceptar órdenes y ejecutarlos fuera del ciclo de petición HTTP.
+- [x] Cifrar payloads sensibles e integrar la persistencia con el ejecutor del agente.
+- [x] Registrar trabajos antes de aceptar órdenes y ejecutarlos en un worker independiente del consumidor HTTP.
+- [x] Probar entrada, reproducción y salida mediante el agente con proceso/configuración/socket por sesión.
 - [ ] Descargar medios HTTPS de Storage con allowlist, límites, timeouts y validación FFprobe.
 - [ ] Montar caché temporal de solo lectura, limpiar archivos y controlar espacio libre.
 - [ ] Obtener credenciales desde Secret Manager, generar JWT por entrada y proteger configuración temporal.

@@ -29,3 +29,4 @@ generateToken.js
 __pycache__/
 *.pyc
 /api/.venv/
+/api/.state/
