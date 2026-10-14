@@ -198,6 +198,16 @@ class MediaCacheTests(unittest.TestCase):
 
 
 class MediaPolicyTests(unittest.TestCase):
+    def test_photo_dimensions_are_bounded_separately_from_video(self):
+        video = {"index": 0, "codec_type": "video", "codec_name": "mjpeg", "width": 1600, "height": 1203}
+        data = {"streams": [video], "format": {"format_name": "jpeg_pipe"}}
+        with patch("app.media.subprocess.run", side_effect=lambda *a, **k: SimpleNamespace(stdout=json.dumps(data).encode())):
+            self.assertEqual(probe_media("/tmp/photo", {"type": "image"})["height"], 1203)
+            for width, height in [(4097, 100), (100, 4097), (4096, 4096), (0, 100)]:
+                video.update(width=width, height=height)
+                with self.assertRaisesRegex(MediaError, "RESOLUTION_UNSUPPORTED"):
+                    probe_media("/tmp/photo", {"type": "image"})
+
     def test_url_allowlist_and_encoded_traversal(self):
         bucket = "zoom-app-dev.firebasestorage.app"
         self.assertEqual(storage_url(URL, bucket).hostname, "storage.googleapis.com")

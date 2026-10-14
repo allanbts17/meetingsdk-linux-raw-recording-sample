@@ -107,7 +107,10 @@ def probe_media(path, media):
                 raise MediaError("MEDIA_ROTATION_UNSUPPORTED")
             if int(rotation) % 180:
                 width, height = height, width
-            if not 1 <= width <= 1920 or not 1 <= height <= 1080:
+            # Photos are decoded once and scaled by the SDK source. Bound their
+            # decoded size independently of the continuous 1080p video limit.
+            valid_size = (1 <= width <= 4096 and 1 <= height <= 4096 and width * height <= 16_000_000) if kind == "image" else (1 <= width <= 1920 and 1 <= height <= 1080)
+            if not valid_size:
                 raise MediaError("MEDIA_RESOLUTION_UNSUPPORTED")
         if needs_audio and not audio:
             raise MediaError("MEDIA_AUDIO_TRACK_MISSING")
